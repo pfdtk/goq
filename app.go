@@ -7,7 +7,7 @@ import (
 
 type App struct {
 	task sync.Map
-	// multi connect, info from Task
+	// multi connect, info from Job
 	connect sync.Map
 }
 
@@ -17,6 +17,10 @@ func (app *App) Start(ctx context.Context) error {
 	return err
 }
 
-func (app *App) RegisterTask(task *Task) {
+func (app *App) RegisterTask(task Task) {
 	app.task.Store(task.GetName(), task)
+}
+
+func (app *App) InitConnect() error {
+	return nil
 }
