@@ -1,10 +1,13 @@
 package goq
 
-import "context"
+import (
+	"context"
+	"github.com/pfdtk/goq/internal/connect"
+)
 
 type Task interface {
 	Run(context.Context, *Job) error
-	OnConnect() string
+	OnConnect() connect.ConnType
 	OnQueue() string
 	GetName() string
 }
