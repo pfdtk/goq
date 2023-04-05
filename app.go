@@ -2,7 +2,6 @@ package goq
 
 import (
 	"context"
-	"github.com/pfdtk/goq/internal/connect"
 	"sync"
 )
 
@@ -10,13 +9,12 @@ type App struct {
 	task sync.Map
 	// conn client
 	conn      sync.Map
-	redisConf *connect.RedisConf
-	sqsConf   *connect.SqsConf
+	maxWorker int
 }
 
 func (app *App) Start(ctx context.Context) error {
-	worker := &Worker{app: app}
-	err := worker.StartConsuming(ctx)
+	worker := &Worker{app: app, maxWorker: make(chan struct{}, app.maxWorker), ctx: ctx}
+	err := worker.StartConsuming()
 	return err
 }
 

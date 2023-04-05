@@ -3,12 +3,16 @@ package queue
 import (
 	"context"
 	"github.com/pfdtk/goq"
+	"github.com/redis/go-redis/v9"
 	"time"
 )
 
 type RedisQueue struct {
-	// todo redis client
-	Client interface{}
+	client *redis.Client
+}
+
+func NewRedisQueue(client *redis.Client) *RedisQueue {
+	return &RedisQueue{client: client}
 }
 
 func (r RedisQueue) Size(ctx context.Context, queue string) (int64, error) {

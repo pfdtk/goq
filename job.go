@@ -1,9 +1,18 @@
 package goq
 
 type Job struct {
-	name    string
-	queue   string
+	// id job uuid
+	id string
+	// name use to find task to process
+	name string
+	// on which queue
+	queue string
+	// payload job payload
 	payload []byte
+}
+
+func (j *Job) Id() string {
+	return j.id
 }
 
 func (j *Job) GetName() string {
