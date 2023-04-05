@@ -72,15 +72,20 @@ func (w *Worker) getNextJob() *Job {
 		if !t.CanRun() {
 			return true
 		}
-		queueType := t.QueueType()
-		switch queueType {
+		c, ok := w.app.conn.Load(t.OnConnect())
+		if !ok {
+			return true
+		}
+		switch t.QueueType() {
 		case queue.Redis:
-			job = w.getRedisJob(t)
+			q := queue.NewRedisQueue(c.(*redis.Client))
+			job = w.getJob(q, t.OnQueue())
 			if job != nil {
 				return false
 			}
 		case queue.Sqs:
-			job = w.getSqsJob(t)
+			q := queue.NewSqsQueue(c.(*sqs.Client))
+			job = w.getJob(q, t.OnQueue())
 			if job != nil {
 				return false
 			}
@@ -90,33 +95,15 @@ func (w *Worker) getNextJob() *Job {
 	return job
 }
 
-func (w *Worker) getSqsJob(task Task) *Job {
-	c, ok := w.app.conn.Load(task.OnConnect())
-	if !ok {
-		return nil
+func (w *Worker) getJob(q Queue, queueName string) *Job {
+	message, err := q.Pop(w.ctx, queueName)
+	if err == nil {
+		return &Job{
+			id:      message.ID,
+			name:    message.Type,
+			queue:   message.Queue,
+			payload: message.Payload,
+		}
 	}
-	q := queue.NewSqsQueue(c.(*sqs.Client))
-	return w.getJob(q, task)
-}
-
-func (w *Worker) getRedisJob(task Task) *Job {
-	c, ok := w.app.conn.Load(task.OnConnect())
-	if !ok {
-		return nil
-	}
-	q := queue.NewRedisQueue(c.(*redis.Client))
-	return w.getJob(q, task)
-}
-
-func (w *Worker) getJob(q Queue, task Task) *Job {
-	message, err := q.Pop(w.ctx, task.OnQueue())
-	if err != nil {
-		return nil
-	}
-	return &Job{
-		id:      message.ID,
-		name:    message.Type,
-		queue:   message.Queue,
-		payload: message.Payload,
-	}
+	return nil
 }
