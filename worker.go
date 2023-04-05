@@ -5,27 +5,61 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/pfdtk/goq/internal/queue"
 	"github.com/redis/go-redis/v9"
+	"time"
 )
 
 type Worker struct {
-	app       *App
-	stopRun   chan struct{}
-	maxWorker chan struct{}
-	ctx       context.Context
+	app        *App
+	stopRun    chan struct{}
+	maxWorker  chan struct{}
+	jobChannel chan *Job
+	ctx        context.Context
 }
 
 func (w *Worker) StartConsuming() error {
+	// TODO single coroutine, maybe a litter slow
 	go w.consume()
+	go w.work()
 	return nil
 }
 
+// consume only pop message from queue and send to work channel
 func (w *Worker) consume() {
 	for {
 		select {
 		case <-w.stopRun:
 			return
 		case w.maxWorker <- struct{}{}:
+			job := w.getNextJob()
+			if job == nil {
+				// release token
+				<-w.maxWorker
+				// sleep 1 second when all queue are empty
+				time.Sleep(time.Second)
+				continue
+			}
+			w.jobChannel <- job
+		}
+	}
+}
 
+// work process task
+func (w *Worker) work() {
+	for {
+		select {
+		// TODO when to exit, maybe still some msg on job channel
+		case <-w.stopRun:
+			return
+		case job := <-w.jobChannel:
+			name := job.GetName()
+			v, ok := w.app.task.Load(name)
+			if ok {
+				task := v.(Task)
+				// TODO err handle
+				_ = task.Run(w.ctx, job)
+			}
+			// release token
+			<-w.maxWorker
 		}
 	}
 }
@@ -35,6 +69,9 @@ func (w *Worker) getNextJob() *Job {
 	// TODO sort tasks
 	w.app.task.Range(func(key, value any) bool {
 		t := value.(Task)
+		if !t.CanRun() {
+			return true
+		}
 		queueType := t.QueueType()
 		switch queueType {
 		case queue.Redis:
@@ -58,17 +95,8 @@ func (w *Worker) getSqsJob(task Task) *Job {
 	if !ok {
 		return nil
 	}
-	sqsClient := queue.NewSqsQueue(c.(*sqs.Client))
-	message, err := sqsClient.Pop(w.ctx, task.OnQueue())
-	if err != nil {
-		return nil
-	}
-	return &Job{
-		id:      message.ID,
-		name:    message.Type,
-		queue:   message.Queue,
-		payload: message.Payload,
-	}
+	q := queue.NewSqsQueue(c.(*sqs.Client))
+	return w.getJob(q, task)
 }
 
 func (w *Worker) getRedisJob(task Task) *Job {
@@ -76,8 +104,12 @@ func (w *Worker) getRedisJob(task Task) *Job {
 	if !ok {
 		return nil
 	}
-	rdc := queue.NewRedisQueue(c.(*redis.Client))
-	message, err := rdc.Pop(w.ctx, task.OnQueue())
+	q := queue.NewRedisQueue(c.(*redis.Client))
+	return w.getJob(q, task)
+}
+
+func (w *Worker) getJob(q Queue, task Task) *Job {
+	message, err := q.Pop(w.ctx, task.OnQueue())
 	if err != nil {
 		return nil
 	}

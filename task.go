@@ -15,4 +15,5 @@ type Task interface {
 	OnQueue() string
 	// GetName task name
 	GetName() string
+	CanRun() bool
 }
