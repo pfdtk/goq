@@ -9,7 +9,7 @@ import (
 )
 
 type Worker struct {
-	app        *App
+	server     *Server
 	stopRun    chan struct{}
 	maxWorker  chan struct{}
 	jobChannel chan *Job
@@ -57,7 +57,7 @@ func (w *Worker) work() {
 					<-w.maxWorker
 				}()
 				name := job.GetName()
-				v, ok := w.app.task.Load(name)
+				v, ok := w.server.task.Load(name)
 				if ok {
 					task := v.(Task)
 					// TODO err handle
@@ -71,12 +71,12 @@ func (w *Worker) work() {
 func (w *Worker) getNextJob() *Job {
 	var job *Job = nil
 	// TODO sort tasks
-	w.app.task.Range(func(key, value any) bool {
+	w.server.task.Range(func(key, value any) bool {
 		t := value.(Task)
 		if !t.CanRun() {
 			return true
 		}
-		c, ok := w.app.conn.Load(t.OnConnect())
+		c, ok := w.server.conn.Load(t.OnConnect())
 		if !ok {
 			return true
 		}
