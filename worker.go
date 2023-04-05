@@ -51,15 +51,19 @@ func (w *Worker) work() {
 		case <-w.stopRun:
 			return
 		case job := <-w.jobChannel:
-			name := job.GetName()
-			v, ok := w.app.task.Load(name)
-			if ok {
-				task := v.(Task)
-				// TODO err handle
-				_ = task.Run(w.ctx, job)
-			}
-			// release token
-			<-w.maxWorker
+			go func() {
+				defer func() {
+					// release token
+					<-w.maxWorker
+				}()
+				name := job.GetName()
+				v, ok := w.app.task.Load(name)
+				if ok {
+					task := v.(Task)
+					// TODO err handle
+					_ = task.Run(w.ctx, job)
+				}
+			}()
 		}
 	}
 }

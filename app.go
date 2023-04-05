@@ -13,7 +13,13 @@ type App struct {
 }
 
 func (app *App) Start(ctx context.Context) error {
-	worker := &Worker{app: app, maxWorker: make(chan struct{}, app.maxWorker), ctx: ctx}
+	worker := &Worker{
+		app:        app,
+		maxWorker:  make(chan struct{}, app.maxWorker),
+		stopRun:    make(chan struct{}),
+		jobChannel: make(chan *Job, app.maxWorker),
+		ctx:        ctx,
+	}
 	err := worker.StartConsuming()
 	return err
 }
