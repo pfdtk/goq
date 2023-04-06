@@ -11,6 +11,7 @@ type Server struct {
 	conn      sync.Map
 	maxWorker int
 	worker    *Worker
+	wg        sync.WaitGroup
 }
 
 func NewServer(config *ServerConfig) *Server {
@@ -27,7 +28,16 @@ func (s *Server) Start(ctx context.Context) error {
 	}
 	s.worker = worker
 	err := worker.StartConsuming()
-	return err
+	if err != nil {
+		return err
+	}
+	// wait for all goroutine to finished
+	s.wg.Wait()
+	return nil
+}
+
+func (s *Server) StopServer() {
+	s.worker.StopConsuming()
 }
 
 func (s *Server) RegisterTask(task Task) {
