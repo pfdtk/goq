@@ -23,6 +23,10 @@ func (w *Worker) StartConsuming() error {
 	return nil
 }
 
+func (w *Worker) StopConsuming() {
+
+}
+
 // consume only pop message from queue and send to work channel
 func (w *Worker) consume() {
 	for {

@@ -12,23 +12,19 @@ type SqsQueue struct {
 }
 
 func (s SqsQueue) Size(ctx context.Context, queue string) (int64, error) {
-	//TODO implement me
-	panic("implement me")
+	return 0, nil
 }
 
 func (s SqsQueue) Push(ctx context.Context, message *goq.Message) error {
-	//TODO implement me
-	panic("implement me")
+	return nil
 }
 
 func (s SqsQueue) Later(ctx context.Context, message *goq.Message, at time.Time) error {
-	//TODO implement me
-	panic("implement me")
+	return nil
 }
 
 func (s SqsQueue) Pop(ctx context.Context, queue string) (*goq.Message, error) {
-	//TODO implement me
-	panic("implement me")
+	return nil, nil
 }
 
 func NewSqsQueue(client *sqs.Client) *SqsQueue {

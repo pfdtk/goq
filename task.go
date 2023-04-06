@@ -3,6 +3,7 @@ package goq
 import (
 	"context"
 	"github.com/pfdtk/goq/internal/queue"
+	"time"
 )
 
 type Task interface {
@@ -15,5 +16,10 @@ type Task interface {
 	OnQueue() string
 	// GetName task name
 	GetName() string
+	// CanRun check if task can run, e.g.: rate limit
 	CanRun() bool
+	// Backoff retry delay when exception throw
+	Backoff() time.Time
+	// Priority task priority
+	Priority() int
 }

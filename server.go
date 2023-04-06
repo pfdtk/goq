@@ -10,6 +10,11 @@ type Server struct {
 	// conn client
 	conn      sync.Map
 	maxWorker int
+	worker    *Worker
+}
+
+func NewServer(config *ServerConfig) *Server {
+	return &Server{maxWorker: config.MaxWorker}
 }
 
 func (s *Server) Start(ctx context.Context) error {
@@ -20,6 +25,7 @@ func (s *Server) Start(ctx context.Context) error {
 		jobChannel: make(chan *Job, s.maxWorker),
 		ctx:        ctx,
 	}
+	s.worker = worker
 	err := worker.StartConsuming()
 	return err
 }
