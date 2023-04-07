@@ -3,6 +3,8 @@ package goq
 import (
 	"context"
 	"github.com/pfdtk/goq/internal/queue"
+	"sort"
+	"sync"
 	"time"
 )
 
@@ -22,4 +24,16 @@ type Task interface {
 	Backoff() time.Time
 	// Priority task priority
 	Priority() int
+}
+
+func sortTask(tasks *sync.Map) []Task {
+	var pairs []Task
+	tasks.Range(func(key, value any) bool {
+		pairs = append(pairs, value.(Task))
+		return true
+	})
+	sort.Slice(pairs, func(i, j int) bool {
+		return pairs[i].Priority() < pairs[j].Priority()
+	})
+	return pairs
 }

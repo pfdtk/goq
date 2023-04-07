@@ -107,34 +107,31 @@ func (w *Worker) runTask(job *Job) (err error) {
 }
 
 func (w *Worker) getNextJob() *Job {
-	var job *Job = nil
-	// TODO sort tasks
-	w.server.task.Range(func(key, value any) bool {
-		t := value.(Task)
+	tasks := sortTask(&w.server.task)
+	for _, t := range tasks {
 		if !t.CanRun() {
-			return true
+			continue
 		}
 		c, ok := w.server.conn.Load(t.OnConnect())
 		if !ok {
-			return true
+			continue
 		}
 		switch t.QueueType() {
 		case queue.Redis:
 			q := queue.NewRedisQueue(c.(*redis.Client))
-			job = w.getJob(q, t.OnQueue())
+			job := w.getJob(q, t.OnQueue())
 			if job != nil {
-				return false
+				return job
 			}
 		case queue.Sqs:
 			q := queue.NewSqsQueue(c.(*sqs.Client))
-			job = w.getJob(q, t.OnQueue())
+			job := w.getJob(q, t.OnQueue())
 			if job != nil {
-				return false
+				return job
 			}
 		}
-		return true
-	})
-	return job
+	}
+	return nil
 }
 
 func (w *Worker) getJob(q Queue, queueName string) *Job {
