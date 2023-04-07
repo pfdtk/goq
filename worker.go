@@ -2,9 +2,11 @@ package goq
 
 import (
 	"context"
+	"errors"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/pfdtk/goq/internal/queue"
 	"github.com/redis/go-redis/v9"
+	"runtime/debug"
 	"time"
 )
 
@@ -14,6 +16,7 @@ type Worker struct {
 	maxWorker  chan struct{}
 	jobChannel chan *Job
 	ctx        context.Context
+	// todo logger
 }
 
 func (w *Worker) StartConsuming() error {
@@ -35,6 +38,7 @@ func (w *Worker) consume() {
 		for {
 			select {
 			case <-w.stopRun:
+				close(w.jobChannel)
 				return
 			case w.maxWorker <- struct{}{}:
 				// select is range, so check before run
@@ -78,17 +82,28 @@ func (w *Worker) work() {
 						// release token
 						<-w.maxWorker
 					}()
-					name := job.GetName()
-					v, ok := w.server.task.Load(name)
-					if ok {
-						task := v.(Task)
-						// TODO err handle
-						_ = task.Run(w.ctx, job)
-					}
+					// todo handle err
+					_ = w.runTask(job)
 				}()
 			}
 		}
 	}()
+}
+
+func (w *Worker) runTask(job *Job) (err error) {
+	// recover err from task, so that program will not exit
+	defer func() {
+		if x := recover(); x != nil {
+			err = errors.New(string(debug.Stack()))
+		}
+	}()
+	name := job.GetName()
+	v, ok := w.server.task.Load(name)
+	if ok {
+		task := v.(Task)
+		err = task.Run(w.ctx, job)
+	}
+	return err
 }
 
 func (w *Worker) getNextJob() *Job {
