@@ -16,11 +16,10 @@ type Worker struct {
 	maxWorker  chan struct{}
 	jobChannel chan *Job
 	ctx        context.Context
-	// todo logger
+	logger     Logger
 }
 
 func (w *Worker) StartConsuming() error {
-	// TODO single coroutine, maybe a litter slow
 	w.consume()
 	w.work()
 	return nil

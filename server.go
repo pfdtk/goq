@@ -2,6 +2,9 @@ package goq
 
 import (
 	"context"
+	"golang.org/x/sys/unix"
+	"os"
+	"os/signal"
 	"sync"
 )
 
@@ -12,6 +15,7 @@ type Server struct {
 	maxWorker int
 	worker    *Worker
 	wg        sync.WaitGroup
+	logger    Logger
 }
 
 func NewServer(config *ServerConfig) *Server {
@@ -25,18 +29,39 @@ func (s *Server) Start(ctx context.Context) error {
 		stopRun:    make(chan struct{}),
 		jobChannel: make(chan *Job, s.maxWorker),
 		ctx:        ctx,
+		logger:     s.logger,
 	}
 	s.worker = worker
 	err := worker.StartConsuming()
 	if err != nil {
 		return err
 	}
+	// wait for sign to exit
+	s.waitSignals()
 	// wait for all goroutine to finished
 	s.wg.Wait()
 	return nil
 }
 
-func (s *Server) StopServer() {
+func (s *Server) waitSignals() {
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, unix.SIGTERM, unix.SIGINT, unix.SIGTSTP)
+	for {
+		sig := <-sigs
+		switch sig {
+		case unix.SIGTERM:
+		case unix.SIGINT:
+		case unix.SIGTSTP:
+			s.logger.Info("Gracefully down server...")
+			s.stopServer()
+			break
+		default:
+			continue
+		}
+	}
+}
+
+func (s *Server) stopServer() {
 	s.worker.StopConsuming()
 }
 
