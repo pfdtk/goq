@@ -7,8 +7,8 @@ import (
 	"github.com/pfdtk/goq/common/cst"
 	"github.com/pfdtk/goq/iface"
 	"github.com/pfdtk/goq/internal/common"
-	"github.com/pfdtk/goq/internal/queue"
 	rdq "github.com/pfdtk/goq/internal/queue/redis"
+	sqsq "github.com/pfdtk/goq/internal/queue/sqs"
 	"github.com/pfdtk/goq/internal/utils"
 	"github.com/redis/go-redis/v9"
 	"runtime/debug"
@@ -135,6 +135,7 @@ func (w *Worker) runTask(job *common.Job) {
 func (w *Worker) perform(job *common.Job) (err error) {
 	// recover err from tasks, so that program will not exit
 	defer func() {
+		w.logger.Infof("job has been processed, id=%s", job.Id)
 		if x := recover(); x != nil {
 			err = errors.New(string(debug.Stack()))
 		}
@@ -166,7 +167,7 @@ func (w *Worker) getNextJob() (*common.Job, error) {
 				return job, nil
 			}
 		case cst.Sqs:
-			q := queue.NewSqsQueue(c.(*sqs.Client))
+			q := sqsq.NewSqsQueue(c.(*sqs.Client))
 			job, err := w.getJob(q, t.OnQueue())
 			if err == nil {
 				return job, nil

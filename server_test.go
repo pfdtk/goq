@@ -14,6 +14,7 @@ type TestTask struct {
 }
 
 func (t TestTask) Run(_ context.Context, job *common.Job) error {
+	time.Sleep(10 * time.Second)
 	println(job)
 	return nil
 }

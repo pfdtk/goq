@@ -1,4 +1,4 @@
-package queue
+package sqs
 
 import (
 	"context"
