@@ -26,6 +26,8 @@ type Task interface {
 	Backoff() time.Time
 	// Priority task priority
 	Priority() int
+	// Retries how many times to retry process
+	Retries() int
 }
 
 func sortTask(tasks *sync.Map) []Task {

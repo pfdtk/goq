@@ -84,20 +84,40 @@ func (w *Worker) work() {
 				if !ok {
 					return
 				}
-				go func() {
-					defer func() {
-						// release token
-						<-w.maxWorker
-					}()
-					// todo handle err
-					_ = w.runTask(job)
-				}()
+				go w.runTask(job)
 			}
 		}
 	}()
 }
 
-func (w *Worker) runTask(job *Job) (err error) {
+func (w *Worker) runTask(job *Job) {
+	defer func() {
+		// release token
+		<-w.maxWorker
+	}()
+	go func() {
+		// goroutine timeout control
+		ctx, cancel := context.WithDeadline(w.ctx, job.TimeoutAt())
+		defer func() {
+			cancel()
+		}()
+		select {
+		// exit if timeout
+		case <-ctx.Done():
+			// TODO retry if necessary
+			w.logger.Warnf("task: %s has been reach it`s deadline", job.Id())
+			return
+		default:
+		}
+		// if parent goroutine exit, sub goroutine will be destroy
+		go func() {
+			// todo handle err
+			_ = w.perform(job)
+		}()
+	}()
+}
+
+func (w *Worker) perform(job *Job) (err error) {
 	// recover err from task, so that program will not exit
 	defer func() {
 		if x := recover(); x != nil {
@@ -149,6 +169,7 @@ func (w *Worker) getJob(q Queue, queueName string) (*Job, error) {
 			name:    message.Type,
 			queue:   message.Queue,
 			payload: message.Payload,
+			timeout: message.Timeout,
 		}, nil
 	}
 	return nil, err
