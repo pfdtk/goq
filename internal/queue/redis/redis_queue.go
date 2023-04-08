@@ -5,8 +5,32 @@ import (
 	"encoding/json"
 	"github.com/pfdtk/goq/common"
 	"github.com/redis/go-redis/v9"
+	"github.com/spf13/cast"
 	"time"
 )
+
+// Get the Lua script for popping the next job off of the queue.
+//
+//	KEYS[1] - The queue to pop jobs from, for example: queues:foo
+//	KEYS[2] - The queue to place reserved jobs on, for example: queues:foo:reserved
+//	ARGV[1] - Current timestamp
+var popScript = redis.NewScript(`
+-- Pop the first job off of the queue...
+local job = redis.call('lpop', KEYS[1])
+local reserved = false
+
+if(job ~= false) then
+    -- Increment the attempt count and place job on the reserved queue...
+    reserved = cjson.decode(job)
+		local timeout = reserved['timeout']
+		local visibility_timeout = tonumber(ARGV[1]) + tonumber(timeout)
+    reserved['attempts'] = reserved['attempts'] + 1
+    reserved = cjson.encode(reserved)
+    redis.call('zadd', KEYS[2], visibility_timeout, reserved)
+end
+
+return {job, reserved}
+`)
 
 type Queue struct {
 	client *redis.Client
@@ -37,16 +61,22 @@ func (r Queue) Later(ctx context.Context, message *common.Message, at time.Time)
 	return nil
 }
 
-// Pop TODO get and backup msg to a sort set, then ack will delete the msg from sort set
 func (r Queue) Pop(ctx context.Context, queue string) (*common.Message, error) {
-	val, err := r.client.LPop(ctx, queue).Result()
+	keys := []string{queue, queue + ":reserved"}
+	argv := []any{time.Now().Unix()}
+	val, err := popScript.Run(ctx, r.client, keys, argv...).Result()
+	if err != nil {
+		return nil, err
+	}
+	res, err := cast.ToStringSliceE(val)
 	if err != nil {
 		return nil, err
 	}
 	msg := common.Message{}
-	err = json.Unmarshal([]byte(val), &msg)
+	err = json.Unmarshal([]byte(res[0]), &msg)
 	if err != nil {
 		return nil, err
 	}
+	msg.Reserved = res[1]
 	return &msg, nil
 }

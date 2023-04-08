@@ -65,7 +65,7 @@ func TestServer_Start(t *testing.T) {
 	log := z.Sugar()
 	log.Info("xx")
 	server := NewServer(&ServerConfig{
-		MaxWorker: 1,
+		MaxWorker: 2,
 		logger:    log,
 	})
 	// connect

@@ -29,7 +29,7 @@ func TestRedisQueue_Push(t *testing.T) {
 		Payload: []byte("payload"),
 		ID:      "uuid-13",
 		Queue:   queueName,
-		Timeout: 5,
+		Timeout: 15,
 	})
 	if err != nil {
 		t.Error(err)

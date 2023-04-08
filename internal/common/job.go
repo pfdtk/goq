@@ -15,6 +15,8 @@ type Job struct {
 	Timeout int64
 	// Payload job Payload
 	Payload []byte
+	// how many times job has been tried
+	Attempts uint
 }
 
 func (j *Job) TimeoutAt() time.Time {

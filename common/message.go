@@ -2,13 +2,17 @@ package common
 
 type Message struct {
 	// witch task
-	Type string
+	Type string `json:"type"`
 	// task common
-	Payload []byte
+	Payload []byte `json:"payload"`
 	// common id
-	ID string
+	ID string `json:"id"`
 	// witch queue to dispatch
-	Queue string
+	Queue string `json:"queue"`
 	// Timeout task`s max running time in second
-	Timeout int64
+	Timeout int64 `json:"timeout"`
+	// how many times job has been tried
+	Attempts uint `json:"attempts"`
+	// use for visibility timeout and move raw message back to list
+	Reserved string `json:"-"`
 }

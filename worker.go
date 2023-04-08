@@ -179,15 +179,16 @@ func (w *Worker) getNextJob() (*common.Job, error) {
 	return nil, ErrEmptyJob
 }
 
-func (w *Worker) getJob(q iface.Queue, queueName string) (*common.Job, error) {
-	message, err := q.Pop(w.ctx, queueName)
+func (w *Worker) getJob(q iface.Queue, qn string) (*common.Job, error) {
+	msg, err := q.Pop(w.ctx, qn)
 	if err == nil {
 		return &common.Job{
-			Id:      message.ID,
-			Name:    message.Type,
-			Queue:   message.Queue,
-			Payload: message.Payload,
-			Timeout: message.Timeout,
+			Id:       msg.ID,
+			Name:     msg.Type,
+			Queue:    msg.Queue,
+			Payload:  msg.Payload,
+			Timeout:  msg.Timeout,
+			Attempts: msg.Attempts,
 		}, nil
 	}
 	return nil, err
