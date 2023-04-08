@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
+	"github.com/pfdtk/goq/common/cst"
 	"github.com/pfdtk/goq/iface"
 	"github.com/pfdtk/goq/internal/common"
 	"github.com/pfdtk/goq/internal/queue"
@@ -48,6 +49,7 @@ func (w *Worker) consume() {
 		for {
 			select {
 			case <-w.stopRun:
+				w.logger.Info("receive stop consume sign, stopping...")
 				close(w.jobChannel)
 				return
 			case w.maxWorker <- struct{}{}:
@@ -61,15 +63,18 @@ func (w *Worker) consume() {
 				job, err := w.getNextJob()
 				switch {
 				case errors.Is(err, ErrEmptyJob):
+					w.logger.Infof("all queue are empty")
 					// sleep 1 second when all queue are empty
 					time.Sleep(time.Second)
 					// release token
 					<-w.maxWorker
 					continue
 				case err != nil:
+					w.logger.Error(err)
 					// release token
 					<-w.maxWorker
 				}
+				w.logger.Infof("get nex job, id=%s", job.Id)
 				w.jobChannel <- job
 			}
 		}
@@ -85,12 +90,15 @@ func (w *Worker) work() {
 			select {
 			// TODO when to exit, maybe still some msg on job channel, we need ack!
 			case <-w.stopRun:
+				w.logger.Info("receive stop work sign, stopping...")
 				return
 			case job, ok := <-w.jobChannel:
 				// stop working when channel was closed
 				if !ok {
+					w.logger.Info("job channel has been close")
 					return
 				}
+				w.logger.Infof("start to run job, id=%s", job.Id)
 				go w.runTask(job)
 			}
 		}
@@ -143,7 +151,7 @@ func (w *Worker) perform(job *common.Job) (err error) {
 func (w *Worker) getNextJob() (*common.Job, error) {
 	tasks := utils.SortTask(w.tasks)
 	for _, t := range tasks {
-		if t.GetStatus() == 0 || !t.CanRun() {
+		if t.GetStatus() == cst.Disable || !t.CanRun() {
 			continue
 		}
 		c, ok := w.conn.Load(t.OnConnect())
@@ -151,13 +159,13 @@ func (w *Worker) getNextJob() (*common.Job, error) {
 			continue
 		}
 		switch t.QueueType() {
-		case queue.Redis:
+		case cst.Redis:
 			q := rdq.NewRedisQueue(c.(*redis.Client))
 			job, err := w.getJob(q, t.OnQueue())
 			if err == nil {
 				return job, nil
 			}
-		case queue.Sqs:
+		case cst.Sqs:
 			q := queue.NewSqsQueue(c.(*sqs.Client))
 			job, err := w.getJob(q, t.OnQueue())
 			if err == nil {

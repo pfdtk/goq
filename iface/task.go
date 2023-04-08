@@ -2,15 +2,15 @@ package iface
 
 import (
 	"context"
+	"github.com/pfdtk/goq/common/cst"
 	"github.com/pfdtk/goq/internal/common"
-	"github.com/pfdtk/goq/internal/queue"
 	"time"
 )
 
 type Task interface {
 	Run(context.Context, *common.Job) error
 	// QueueType which queue type, e.g.: RedisQueue
-	QueueType() queue.Type
+	QueueType() cst.Type
 	// OnConnect queue on which connect
 	OnConnect() string
 	// OnQueue these are some queue on one connect, specify which one to consuming

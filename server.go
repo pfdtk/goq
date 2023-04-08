@@ -23,10 +23,14 @@ type Server struct {
 }
 
 func NewServer(config *ServerConfig) *Server {
-	return &Server{maxWorker: config.MaxWorker}
+	return &Server{
+		maxWorker: config.MaxWorker,
+		logger:    config.logger,
+	}
 }
 
 func (s *Server) Start(ctx context.Context) error {
+	s.logger.Info("starting server...")
 	err := s.StartWorker(ctx)
 	if err != nil {
 		return err
