@@ -8,6 +8,7 @@ import (
 	"github.com/pfdtk/goq/internal/common"
 	"github.com/pfdtk/goq/internal/queue"
 	rdq "github.com/pfdtk/goq/internal/queue/redis"
+	"github.com/pfdtk/goq/internal/utils"
 	"github.com/redis/go-redis/v9"
 	"runtime/debug"
 	"time"
@@ -130,14 +131,14 @@ func (w *Worker) perform(job *common.Job) (err error) {
 	name := job.Name
 	v, ok := w.server.task.Load(name)
 	if ok {
-		task := v.(Task)
+		task := v.(iface.Task)
 		err = task.Run(w.ctx, job)
 	}
 	return err
 }
 
 func (w *Worker) getNextJob() (*common.Job, error) {
-	tasks := sortTask(&w.server.task)
+	tasks := utils.SortTask(&w.server.task)
 	for _, t := range tasks {
 		if t.GetStatus() == 0 || !t.CanRun() {
 			continue

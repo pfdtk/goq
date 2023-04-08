@@ -81,7 +81,7 @@ func (s *Server) stopServer() {
 	s.worker.StopConsuming()
 }
 
-func (s *Server) RegisterTask(task Task) {
+func (s *Server) RegisterTask(task iface.Task) {
 	s.task.Store(task.GetName(), task)
 }
 
