@@ -2,6 +2,8 @@ package goq
 
 import (
 	"context"
+	"github.com/pfdtk/goq/iface"
+	"github.com/pfdtk/goq/internal/common"
 	"golang.org/x/sys/unix"
 	"os"
 	"os/signal"
@@ -15,7 +17,9 @@ type Server struct {
 	maxWorker int
 	worker    *Worker
 	wg        sync.WaitGroup
-	logger    Logger
+	logger    iface.Logger
+
+	// todo add event control
 }
 
 func NewServer(config *ServerConfig) *Server {
@@ -43,7 +47,7 @@ func (s *Server) StartWorker(ctx context.Context) error {
 		server:     s,
 		maxWorker:  make(chan struct{}, s.maxWorker),
 		stopRun:    make(chan struct{}),
-		jobChannel: make(chan *Job, s.maxWorker),
+		jobChannel: make(chan *common.Job, s.maxWorker),
 		ctx:        ctx,
 		logger:     s.logger,
 	}

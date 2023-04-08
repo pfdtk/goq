@@ -1,4 +1,4 @@
-package goq
+package iface
 
 type Logger interface {
 	Debug(args ...interface{})

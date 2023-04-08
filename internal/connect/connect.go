@@ -15,7 +15,6 @@ const (
 )
 
 type RedisConf struct {
-	Conn     string
 	Addr     string
 	Port     string
 	Password string

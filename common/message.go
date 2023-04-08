@@ -1,11 +1,11 @@
-package goq
+package common
 
 type Message struct {
 	// witch task
 	Type string
-	// task message
+	// task common
 	Payload []byte
-	// message id
+	// common id
 	ID string
 	// witch queue to dispatch
 	Queue string

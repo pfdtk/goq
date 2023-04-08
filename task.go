@@ -2,6 +2,7 @@ package goq
 
 import (
 	"context"
+	"github.com/pfdtk/goq/internal/common"
 	"github.com/pfdtk/goq/internal/queue"
 	"sort"
 	"sync"
@@ -9,7 +10,7 @@ import (
 )
 
 type Task interface {
-	Run(context.Context, *Job) error
+	Run(context.Context, *common.Job) error
 	// QueueType which queue type, e.g.: RedisQueue
 	QueueType() queue.Type
 	// OnConnect queue on which connect

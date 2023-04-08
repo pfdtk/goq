@@ -4,7 +4,10 @@ import (
 	"context"
 	"errors"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
+	"github.com/pfdtk/goq/iface"
+	"github.com/pfdtk/goq/internal/common"
 	"github.com/pfdtk/goq/internal/queue"
+	rdq "github.com/pfdtk/goq/internal/queue/redis"
 	"github.com/redis/go-redis/v9"
 	"runtime/debug"
 	"time"
@@ -18,9 +21,9 @@ type Worker struct {
 	server     *Server
 	stopRun    chan struct{}
 	maxWorker  chan struct{}
-	jobChannel chan *Job
+	jobChannel chan *common.Job
 	ctx        context.Context
-	logger     Logger
+	logger     iface.Logger
 }
 
 func (w *Worker) StartConsuming() error {
@@ -33,7 +36,7 @@ func (w *Worker) StopConsuming() {
 	close(w.stopRun)
 }
 
-// consume only pop message from queue and send to work channel
+// consume only pop common from queue and send to work channel
 func (w *Worker) consume() {
 	w.server.wg.Add(1)
 	go func() {
@@ -90,7 +93,7 @@ func (w *Worker) work() {
 	}()
 }
 
-func (w *Worker) runTask(job *Job) {
+func (w *Worker) runTask(job *common.Job) {
 	defer func() {
 		// release token
 		<-w.maxWorker
@@ -105,7 +108,7 @@ func (w *Worker) runTask(job *Job) {
 		// exit if timeout
 		case <-ctx.Done():
 			// TODO retry if necessary
-			w.logger.Warnf("task: %s has been reach it`s deadline", job.Id())
+			w.logger.Warnf("task: %s has been reach it`s deadline", job.Id)
 			return
 		default:
 		}
@@ -117,14 +120,14 @@ func (w *Worker) runTask(job *Job) {
 	}()
 }
 
-func (w *Worker) perform(job *Job) (err error) {
+func (w *Worker) perform(job *common.Job) (err error) {
 	// recover err from task, so that program will not exit
 	defer func() {
 		if x := recover(); x != nil {
 			err = errors.New(string(debug.Stack()))
 		}
 	}()
-	name := job.GetName()
+	name := job.Name
 	v, ok := w.server.task.Load(name)
 	if ok {
 		task := v.(Task)
@@ -133,7 +136,7 @@ func (w *Worker) perform(job *Job) (err error) {
 	return err
 }
 
-func (w *Worker) getNextJob() (*Job, error) {
+func (w *Worker) getNextJob() (*common.Job, error) {
 	tasks := sortTask(&w.server.task)
 	for _, t := range tasks {
 		if t.GetStatus() == 0 || !t.CanRun() {
@@ -145,7 +148,7 @@ func (w *Worker) getNextJob() (*Job, error) {
 		}
 		switch t.QueueType() {
 		case queue.Redis:
-			q := queue.NewRedisQueue(c.(*redis.Client))
+			q := rdq.NewRedisQueue(c.(*redis.Client))
 			job, err := w.getJob(q, t.OnQueue())
 			if err == nil {
 				return job, nil
@@ -161,15 +164,15 @@ func (w *Worker) getNextJob() (*Job, error) {
 	return nil, ErrEmptyJob
 }
 
-func (w *Worker) getJob(q Queue, queueName string) (*Job, error) {
+func (w *Worker) getJob(q iface.Queue, queueName string) (*common.Job, error) {
 	message, err := q.Pop(w.ctx, queueName)
 	if err == nil {
-		return &Job{
-			id:      message.ID,
-			name:    message.Type,
-			queue:   message.Queue,
-			payload: message.Payload,
-			timeout: message.Timeout,
+		return &common.Job{
+			Id:      message.ID,
+			Name:    message.Type,
+			Queue:   message.Queue,
+			Payload: message.Payload,
+			Timeout: message.Timeout,
 		}, nil
 	}
 	return nil, err
