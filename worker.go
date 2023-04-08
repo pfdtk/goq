@@ -106,17 +106,14 @@ func (w *Worker) work() {
 }
 
 func (w *Worker) runTask(job *common.Job) {
-	defer func() {
-		// release token
-		<-w.maxWorker
-	}()
 	go func() {
 		// goroutine timeout control
 		ctx, cancel := context.WithDeadline(w.ctx, job.TimeoutAt())
 		defer func() {
+			w.logger.Info("task defer, release token")
+			<-w.maxWorker
 			cancel()
 		}()
-		// if parent goroutine exit, sub goroutine will be destroy
 		prh := make(chan any, 1)
 		go func() {
 			// todo handle err
@@ -127,9 +124,11 @@ func (w *Worker) runTask(job *common.Job) {
 		// wait for response
 		select {
 		case <-prh:
+			w.logger.Info("task result has been received")
 			return
 		case <-ctx.Done():
 			// TODO retry if necessary
+			// please note that, the task goroutine will not stop, even if deadline is reach
 			w.logger.Warnf("tasks: %s has been reach it`s deadline", job.Id)
 			return
 		}
