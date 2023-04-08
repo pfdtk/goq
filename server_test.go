@@ -13,10 +13,11 @@ import (
 type TestTask struct {
 }
 
-func (t TestTask) Run(_ context.Context, job *common.Job) error {
+func (t TestTask) Run(_ context.Context, job *common.Job) (any, error) {
+	log := zap.S()
 	time.Sleep(10 * time.Second)
-	println(job)
-	return nil
+	log.Info("touch test task")
+	return nil, nil
 }
 
 func (t TestTask) QueueType() cst.Type {

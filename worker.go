@@ -116,26 +116,29 @@ func (w *Worker) runTask(job *common.Job) {
 		defer func() {
 			cancel()
 		}()
+		// if parent goroutine exit, sub goroutine will be destroy
+		prh := make(chan any, 1)
+		go func() {
+			// todo handle err
+			res, _ := w.perform(job)
+			w.logger.Infof("job has been processed, id=%s", job.Id)
+			prh <- res
+		}()
+		// wait for response
 		select {
-		// exit if timeout
+		case <-prh:
+			return
 		case <-ctx.Done():
 			// TODO retry if necessary
 			w.logger.Warnf("tasks: %s has been reach it`s deadline", job.Id)
 			return
-		default:
 		}
-		// if parent goroutine exit, sub goroutine will be destroy
-		go func() {
-			// todo handle err
-			_ = w.perform(job)
-		}()
 	}()
 }
 
-func (w *Worker) perform(job *common.Job) (err error) {
+func (w *Worker) perform(job *common.Job) (res any, err error) {
 	// recover err from tasks, so that program will not exit
 	defer func() {
-		w.logger.Infof("job has been processed, id=%s", job.Id)
 		if x := recover(); x != nil {
 			err = errors.New(string(debug.Stack()))
 		}
@@ -144,9 +147,9 @@ func (w *Worker) perform(job *common.Job) (err error) {
 	v, ok := w.tasks.Load(name)
 	if ok {
 		task := v.(iface.Task)
-		err = task.Run(w.ctx, job)
+		res, err = task.Run(w.ctx, job)
 	}
-	return err
+	return
 }
 
 func (w *Worker) getNextJob() (*common.Job, error) {

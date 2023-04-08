@@ -8,7 +8,7 @@ import (
 )
 
 type Task interface {
-	Run(context.Context, *common.Job) error
+	Run(context.Context, *common.Job) (any, error)
 	// QueueType which queue type, e.g.: RedisQueue
 	QueueType() cst.Type
 	// OnConnect queue on which connect
