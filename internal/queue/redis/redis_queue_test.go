@@ -7,6 +7,7 @@ import (
 	"github.com/pfdtk/goq/internal/connect"
 	"github.com/redis/go-redis/v9"
 	"testing"
+	"time"
 )
 
 var queueName = "default"
@@ -31,6 +32,20 @@ func TestRedisQueue_Push(t *testing.T) {
 		Queue:   queueName,
 		Timeout: 15,
 	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestQueue_Later(t *testing.T) {
+	q := getQueue()
+	err := q.Later(context.Background(), &common.Message{
+		Type:    "test",
+		Payload: []byte("payload"),
+		ID:      "uuid-13",
+		Queue:   queueName,
+		Timeout: 15,
+	}, time.Now().Add(1*time.Hour))
 	if err != nil {
 		t.Error(err)
 	}

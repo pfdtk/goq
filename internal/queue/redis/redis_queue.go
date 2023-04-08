@@ -51,14 +51,22 @@ func (r Queue) Push(ctx context.Context, message *common.Message) error {
 		return err
 	}
 	_, err = r.client.RPush(ctx, message.Queue, bytes).Result()
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 func (r Queue) Later(ctx context.Context, message *common.Message, at time.Time) error {
-	return nil
+	queue := message.Queue + ":delayed"
+	bytes, err := json.Marshal(message)
+	if err != nil {
+		return err
+	}
+	score := at.Unix()
+	_, err = r.client.ZAdd(ctx, queue, redis.Z{
+		Score:  float64(score),
+		Member: bytes,
+	}).Result()
+
+	return err
 }
 
 func (r Queue) Pop(ctx context.Context, queue string) (*common.Message, error) {
