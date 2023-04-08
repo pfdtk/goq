@@ -11,6 +11,7 @@ import (
 	"github.com/pfdtk/goq/internal/utils"
 	"github.com/redis/go-redis/v9"
 	"runtime/debug"
+	"sync"
 	"time"
 )
 
@@ -19,7 +20,9 @@ var (
 )
 
 type Worker struct {
-	server     *Server
+	conn       *sync.Map
+	tasks      *sync.Map
+	wg         *sync.WaitGroup
 	stopRun    chan struct{}
 	maxWorker  chan struct{}
 	jobChannel chan *common.Job
@@ -39,9 +42,9 @@ func (w *Worker) StopConsuming() {
 
 // consume only pop common from queue and send to work channel
 func (w *Worker) consume() {
-	w.server.wg.Add(1)
+	w.wg.Add(1)
 	go func() {
-		defer w.server.wg.Done()
+		defer w.wg.Done()
 		for {
 			select {
 			case <-w.stopRun:
@@ -73,11 +76,11 @@ func (w *Worker) consume() {
 	}()
 }
 
-// work process task
+// work process tasks
 func (w *Worker) work() {
-	w.server.wg.Add(1)
+	w.wg.Add(1)
 	go func() {
-		defer w.server.wg.Done()
+		defer w.wg.Done()
 		for {
 			select {
 			// TODO when to exit, maybe still some msg on job channel, we need ack!
@@ -109,7 +112,7 @@ func (w *Worker) runTask(job *common.Job) {
 		// exit if timeout
 		case <-ctx.Done():
 			// TODO retry if necessary
-			w.logger.Warnf("task: %s has been reach it`s deadline", job.Id)
+			w.logger.Warnf("tasks: %s has been reach it`s deadline", job.Id)
 			return
 		default:
 		}
@@ -122,14 +125,14 @@ func (w *Worker) runTask(job *common.Job) {
 }
 
 func (w *Worker) perform(job *common.Job) (err error) {
-	// recover err from task, so that program will not exit
+	// recover err from tasks, so that program will not exit
 	defer func() {
 		if x := recover(); x != nil {
 			err = errors.New(string(debug.Stack()))
 		}
 	}()
 	name := job.Name
-	v, ok := w.server.task.Load(name)
+	v, ok := w.tasks.Load(name)
 	if ok {
 		task := v.(iface.Task)
 		err = task.Run(w.ctx, job)
@@ -138,12 +141,12 @@ func (w *Worker) perform(job *common.Job) (err error) {
 }
 
 func (w *Worker) getNextJob() (*common.Job, error) {
-	tasks := utils.SortTask(&w.server.task)
+	tasks := utils.SortTask(w.tasks)
 	for _, t := range tasks {
 		if t.GetStatus() == 0 || !t.CanRun() {
 			continue
 		}
-		c, ok := w.server.conn.Load(t.OnConnect())
+		c, ok := w.conn.Load(t.OnConnect())
 		if !ok {
 			continue
 		}

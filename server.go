@@ -11,7 +11,7 @@ import (
 )
 
 type Server struct {
-	task sync.Map
+	tasks sync.Map
 	// conn client
 	conn      sync.Map
 	maxWorker int
@@ -31,9 +31,9 @@ func (s *Server) Start(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	// TODO move delay task to list
-	// TODO move priority task to list
-	// TODO move un ack task to list
+	// TODO move delay tasks to list
+	// TODO move priority tasks to list
+	// TODO move un ack tasks to list
 	// wait for sign to exit
 	s.waitSignals()
 	// wait for all goroutine to finished
@@ -44,12 +44,14 @@ func (s *Server) Start(ctx context.Context) error {
 
 func (s *Server) StartWorker(ctx context.Context) error {
 	worker := &Worker{
-		server:     s,
+		wg:         &s.wg,
+		tasks:      &s.tasks,
 		maxWorker:  make(chan struct{}, s.maxWorker),
 		stopRun:    make(chan struct{}),
 		jobChannel: make(chan *common.Job, s.maxWorker),
 		ctx:        ctx,
 		logger:     s.logger,
+		conn:       &s.conn,
 	}
 	s.worker = worker
 	err := worker.StartConsuming()
@@ -82,7 +84,7 @@ func (s *Server) stopServer() {
 }
 
 func (s *Server) RegisterTask(task iface.Task) {
-	s.task.Store(task.GetName(), task)
+	s.tasks.Store(task.GetName(), task)
 }
 
 func (s *Server) AddConnect(name string, conn any) {
