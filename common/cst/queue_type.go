@@ -1,8 +1,8 @@
 package cst
 
-type Type int32
+type Type string
 
 const (
-	Redis Type = iota
-	Sqs
+	Redis Type = "redis"
+	Sqs   Type = "sqs"
 )
