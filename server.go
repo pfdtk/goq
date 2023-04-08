@@ -23,6 +23,22 @@ func NewServer(config *ServerConfig) *Server {
 }
 
 func (s *Server) Start(ctx context.Context) error {
+	err := s.StartWorker(ctx)
+	if err != nil {
+		return err
+	}
+	// TODO move delay task to list
+	// TODO move priority task to list
+	// TODO move un ack task to list
+	// wait for sign to exit
+	s.waitSignals()
+	// wait for all goroutine to finished
+	s.wg.Wait()
+
+	return nil
+}
+
+func (s *Server) StartWorker(ctx context.Context) error {
 	worker := &Worker{
 		server:     s,
 		maxWorker:  make(chan struct{}, s.maxWorker),
@@ -36,10 +52,6 @@ func (s *Server) Start(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	// wait for sign to exit
-	s.waitSignals()
-	// wait for all goroutine to finished
-	s.wg.Wait()
 	return nil
 }
 

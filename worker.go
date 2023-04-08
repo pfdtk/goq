@@ -10,6 +10,10 @@ import (
 	"time"
 )
 
+var (
+	ErrEmptyJob = errors.New("no jobs are ready for processing")
+)
+
 type Worker struct {
 	server     *Server
 	stopRun    chan struct{}
@@ -47,13 +51,17 @@ func (w *Worker) consume() {
 					return
 				default:
 				}
-				job := w.getNextJob()
-				if job == nil {
-					// release token
-					<-w.maxWorker
+				job, err := w.getNextJob()
+				switch {
+				case errors.Is(err, ErrEmptyJob):
 					// sleep 1 second when all queue are empty
 					time.Sleep(time.Second)
+					// release token
+					<-w.maxWorker
 					continue
+				case err != nil:
+					// release token
+					<-w.maxWorker
 				}
 				w.jobChannel <- job
 			}
@@ -105,10 +113,10 @@ func (w *Worker) runTask(job *Job) (err error) {
 	return err
 }
 
-func (w *Worker) getNextJob() *Job {
+func (w *Worker) getNextJob() (*Job, error) {
 	tasks := sortTask(&w.server.task)
 	for _, t := range tasks {
-		if !t.CanRun() {
+		if t.GetStatus() == 0 || !t.CanRun() {
 			continue
 		}
 		c, ok := w.server.conn.Load(t.OnConnect())
@@ -118,22 +126,22 @@ func (w *Worker) getNextJob() *Job {
 		switch t.QueueType() {
 		case queue.Redis:
 			q := queue.NewRedisQueue(c.(*redis.Client))
-			job := w.getJob(q, t.OnQueue())
-			if job != nil {
-				return job
+			job, err := w.getJob(q, t.OnQueue())
+			if err == nil {
+				return job, nil
 			}
 		case queue.Sqs:
 			q := queue.NewSqsQueue(c.(*sqs.Client))
-			job := w.getJob(q, t.OnQueue())
-			if job != nil {
-				return job
+			job, err := w.getJob(q, t.OnQueue())
+			if err == nil {
+				return job, nil
 			}
 		}
 	}
-	return nil
+	return nil, ErrEmptyJob
 }
 
-func (w *Worker) getJob(q Queue, queueName string) *Job {
+func (w *Worker) getJob(q Queue, queueName string) (*Job, error) {
 	message, err := q.Pop(w.ctx, queueName)
 	if err == nil {
 		return &Job{
@@ -141,7 +149,7 @@ func (w *Worker) getJob(q Queue, queueName string) *Job {
 			name:    message.Type,
 			queue:   message.Queue,
 			payload: message.Payload,
-		}
+		}, nil
 	}
-	return nil
+	return nil, err
 }

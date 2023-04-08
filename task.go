@@ -18,6 +18,8 @@ type Task interface {
 	OnQueue() string
 	// GetName task name
 	GetName() string
+	// GetStatus 0 is disabled, 1 is active
+	GetStatus() uint32
 	// CanRun check if task can run, e.g.: rate limit
 	CanRun() bool
 	// Backoff retry delay when exception throw
