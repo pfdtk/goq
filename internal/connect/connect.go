@@ -7,11 +7,11 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-type ConnType int32
+type ConnType string
 
 const (
-	ConnRedis ConnType = iota
-	ConnSqs
+	ConnRedis ConnType = "redis"
+	ConnSqs   ConnType = "sqs"
 )
 
 type RedisConf struct {
