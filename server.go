@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"sync"
+	"time"
 )
 
 type Server struct {
@@ -15,11 +16,12 @@ type Server struct {
 	// conn client
 	conn      sync.Map
 	maxWorker int
-	worker    *Worker
+	worker    *worker
 	wg        sync.WaitGroup
 	logger    iface.Logger
 
 	// todo add event control
+	// todo add error handle
 }
 
 func NewServer(config *ServerConfig) *Server {
@@ -31,7 +33,11 @@ func NewServer(config *ServerConfig) *Server {
 
 func (s *Server) Start(ctx context.Context) error {
 	s.logger.Info("starting server...")
-	err := s.StartWorker(ctx)
+	err := s.startWorker(ctx)
+	if err != nil {
+		return err
+	}
+	err = s.startMigrate(ctx)
 	if err != nil {
 		return err
 	}
@@ -46,8 +52,8 @@ func (s *Server) Start(ctx context.Context) error {
 	return nil
 }
 
-func (s *Server) StartWorker(ctx context.Context) error {
-	worker := &Worker{
+func (s *Server) startWorker(ctx context.Context) error {
+	worker := &worker{
 		wg:         &s.wg,
 		tasks:      &s.tasks,
 		maxWorker:  make(chan struct{}, s.maxWorker),
@@ -59,10 +65,19 @@ func (s *Server) StartWorker(ctx context.Context) error {
 	}
 	s.worker = worker
 	err := worker.StartConsuming()
-	if err != nil {
-		return err
+	return err
+}
+
+func (s *Server) startMigrate(ctx context.Context) error {
+	migrate := &migrate{
+		wg:       &s.wg,
+		tasks:    &s.tasks,
+		ctx:      ctx,
+		logger:   s.logger,
+		conn:     &s.conn,
+		interval: 5 * time.Second,
 	}
-	return nil
+	return migrate.StartMigrate()
 }
 
 func (s *Server) waitSignals() {

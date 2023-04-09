@@ -20,7 +20,7 @@ var (
 	ErrEmptyJob = errors.New("no jobs are ready for processing")
 )
 
-type Worker struct {
+type worker struct {
 	conn       *sync.Map
 	tasks      *sync.Map
 	wg         *sync.WaitGroup
@@ -31,18 +31,18 @@ type Worker struct {
 	logger     iface.Logger
 }
 
-func (w *Worker) StartConsuming() error {
+func (w *worker) StartConsuming() error {
 	w.consume()
 	w.work()
 	return nil
 }
 
-func (w *Worker) StopConsuming() {
+func (w *worker) StopConsuming() {
 	close(w.stopRun)
 }
 
 // consume only pop common from queue and send to work channel
-func (w *Worker) consume() {
+func (w *worker) consume() {
 	w.wg.Add(1)
 	go func() {
 		defer w.wg.Done()
@@ -82,7 +82,7 @@ func (w *Worker) consume() {
 }
 
 // work process tasks
-func (w *Worker) work() {
+func (w *worker) work() {
 	w.wg.Add(1)
 	go func() {
 		defer w.wg.Done()
@@ -105,7 +105,7 @@ func (w *Worker) work() {
 	}()
 }
 
-func (w *Worker) runTask(job *common.Job) {
+func (w *worker) runTask(job *common.Job) {
 	go func() {
 		// goroutine timeout control
 		ctx, cancel := context.WithDeadline(w.ctx, job.TimeoutAt())
@@ -135,7 +135,7 @@ func (w *Worker) runTask(job *common.Job) {
 	}()
 }
 
-func (w *Worker) perform(job *common.Job) (res any, err error) {
+func (w *worker) perform(job *common.Job) (res any, err error) {
 	// recover err from tasks, so that program will not exit
 	defer func() {
 		if x := recover(); x != nil {
@@ -151,7 +151,7 @@ func (w *Worker) perform(job *common.Job) (res any, err error) {
 	return
 }
 
-func (w *Worker) getNextJob() (*common.Job, error) {
+func (w *worker) getNextJob() (*common.Job, error) {
 	tasks := utils.SortTask(w.tasks)
 	for _, t := range tasks {
 		if t.GetStatus() == cst.Disable || !t.CanRun() {
@@ -179,7 +179,7 @@ func (w *Worker) getNextJob() (*common.Job, error) {
 	return nil, ErrEmptyJob
 }
 
-func (w *Worker) getJob(q iface.Queue, qn string) (*common.Job, error) {
+func (w *worker) getJob(q iface.Queue, qn string) (*common.Job, error) {
 	msg, err := q.Pop(w.ctx, qn)
 	if err == nil {
 		return &common.Job{
