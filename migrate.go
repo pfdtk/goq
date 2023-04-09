@@ -63,11 +63,12 @@ func (m migrate) performMigrateTasks(t iface.Task, cat MigrateType) {
 		return
 	}
 	q := rdq.NewRedisQueue(c.(*redis.Client))
-	moveTo := m.getMigrateQueueKey(q, t.OnQueue(), cat)
-	if moveTo == "" {
+	from := m.getMigrateQueueKey(q, t.OnQueue(), cat)
+	if from == "" {
 		return
 	}
-	err := q.Migrate(m.ctx, t.OnQueue(), moveTo)
+	moveTo := t.OnQueue()
+	err := q.Migrate(m.ctx, from, moveTo)
 	if err != nil {
 		m.logger.Errorf("execute migrate %s task, queue=%s", cat, t.OnQueue())
 	}
