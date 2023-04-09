@@ -23,6 +23,7 @@ var (
 type worker struct {
 	conn       *sync.Map
 	tasks      *sync.Map
+	sortTasks  []iface.Task
 	wg         *sync.WaitGroup
 	stopRun    chan struct{}
 	maxWorker  chan struct{}
@@ -32,6 +33,7 @@ type worker struct {
 }
 
 func (w *worker) StartConsuming() error {
+	w.sortTasks = utils.SortTask(w.tasks)
 	w.consume()
 	w.work()
 	return nil
@@ -151,8 +153,7 @@ func (w *worker) perform(job *common.Job) (res any, err error) {
 }
 
 func (w *worker) getNextJob() (*common.Job, error) {
-	tasks := utils.SortTask(w.tasks)
-	for _, t := range tasks {
+	for _, t := range w.sortTasks {
 		if t.GetStatus() == cst.Disable || !t.CanRun() {
 			continue
 		}
