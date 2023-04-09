@@ -38,6 +38,7 @@ func (w *worker) StartConsuming() error {
 }
 
 func (w *worker) StopConsuming() {
+	w.logger.Info("stopping worker...")
 	close(w.stopRun)
 }
 
@@ -49,7 +50,6 @@ func (w *worker) consume() {
 		for {
 			select {
 			case <-w.stopRun:
-				w.logger.Info("receive stop consume sign, stopping...")
 				close(w.jobChannel)
 				return
 			case w.maxWorker <- struct{}{}:
@@ -63,7 +63,7 @@ func (w *worker) consume() {
 				job, err := w.getNextJob()
 				switch {
 				case errors.Is(err, ErrEmptyJob):
-					w.logger.Infof("all queue are empty")
+					w.logger.Info("no jobs are ready for processing on all queue")
 					// sleep 1 second when all queue are empty
 					time.Sleep(time.Second)
 					// release token
@@ -74,7 +74,7 @@ func (w *worker) consume() {
 					// release token
 					<-w.maxWorker
 				}
-				w.logger.Infof("get nex job, id=%s", job.Id)
+				w.logger.Infof("got next job to process, id=%s, name=%s", job.Id, job.Name)
 				w.jobChannel <- job
 			}
 		}
@@ -90,15 +90,15 @@ func (w *worker) work() {
 			select {
 			// TODO when to exit, maybe still some msg on job channel, we need ack!
 			case <-w.stopRun:
-				w.logger.Info("receive stop work sign, stopping...")
+				w.logger.Info("worker has been stopped")
 				return
 			case job, ok := <-w.jobChannel:
 				// stop working when channel was closed
 				if !ok {
-					w.logger.Info("job channel has been close")
+					w.logger.Info("worker has been stopped")
 					return
 				}
-				w.logger.Infof("start to run job, id=%s", job.Id)
+				w.logger.Infof("start to process job, id=%s, name=%s", job.Id, job.Name)
 				go w.runTask(job)
 			}
 		}
@@ -110,7 +110,7 @@ func (w *worker) runTask(job *common.Job) {
 		// goroutine timeout control
 		ctx, cancel := context.WithDeadline(w.ctx, job.TimeoutAt())
 		defer func() {
-			w.logger.Info("task defer, release token")
+			w.logger.Infof("task defer, release token, id=%s, name=%s", job.Id, job.Name)
 			<-w.maxWorker
 			cancel()
 		}()
@@ -118,18 +118,17 @@ func (w *worker) runTask(job *common.Job) {
 		go func() {
 			// todo handle err
 			res, _ := w.perform(job)
-			w.logger.Infof("job has been processed, id=%s", job.Id)
+			w.logger.Infof("job has been processed, id=%s, name=%s", job.Id, job.Name)
 			prh <- res
 		}()
 		// wait for response
 		select {
 		case <-prh:
-			w.logger.Info("task result has been received")
 			return
 		case <-ctx.Done():
 			// TODO retry if necessary
 			// please note that, the task goroutine will not stop, even if deadline is reach
-			w.logger.Warnf("tasks: %s has been reach it`s deadline", job.Id)
+			w.logger.Warnf("tasks has been reach it`s deadline, id=%s, name=%s", job.Id, job.Name)
 			return
 		}
 	}()

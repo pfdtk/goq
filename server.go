@@ -41,9 +41,6 @@ func (s *Server) Start(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	// TODO move delay tasks to list
-	// TODO move priority tasks to list
-	// TODO move un ack tasks to list
 	// wait for sign to exit
 	s.waitSignals()
 	// wait for all goroutine to finished
@@ -53,6 +50,7 @@ func (s *Server) Start(ctx context.Context) error {
 }
 
 func (s *Server) startWorker(ctx context.Context) error {
+	s.logger.Info("starting worker...")
 	worker := &worker{
 		wg:         &s.wg,
 		tasks:      &s.tasks,
@@ -69,6 +67,7 @@ func (s *Server) startWorker(ctx context.Context) error {
 }
 
 func (s *Server) startMigrate(ctx context.Context) error {
+	s.logger.Info("starting migrate...")
 	migrate := &migrate{
 		wg:       &s.wg,
 		tasks:    &s.tasks,
@@ -81,24 +80,23 @@ func (s *Server) startMigrate(ctx context.Context) error {
 }
 
 func (s *Server) waitSignals() {
+	s.logger.Info("Send signal TERM or INT to terminate the process")
 	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, unix.SIGTERM, unix.SIGINT, unix.SIGTSTP)
+	signal.Notify(sigs, unix.SIGTERM, unix.SIGINT)
 	for {
 		sig := <-sigs
 		switch sig {
 		case unix.SIGTERM:
 		case unix.SIGINT:
-		case unix.SIGTSTP:
-			s.logger.Info("Gracefully down server...")
 			s.stopServer()
 			break
 		default:
-			continue
 		}
 	}
 }
 
 func (s *Server) stopServer() {
+	s.logger.Warn("Gracefully down server...")
 	s.worker.StopConsuming()
 }
 
