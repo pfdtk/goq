@@ -10,6 +10,13 @@ import (
 	"time"
 )
 
+type MigrateType int
+
+const (
+	MigrateAck MigrateType = iota
+	MigrateDelay
+)
+
 type migrate struct {
 	conn     *sync.Map
 	tasks    *sync.Map
@@ -24,14 +31,14 @@ func (m migrate) StartMigrate() error {
 	redisTask := utils.GetRedisTask(m.tasks)
 	if len(redisTask) != 0 {
 		for _, t := range redisTask {
-			m.migrateRedisTasks(t, "ack")
-			m.migrateRedisTasks(t, "delay")
+			m.migrateRedisTasks(t, MigrateAck)
+			m.migrateRedisTasks(t, MigrateDelay)
 		}
 	}
 	return nil
 }
 
-func (m migrate) migrateRedisTasks(t iface.Task, cat string) {
+func (m migrate) migrateRedisTasks(t iface.Task, cat MigrateType) {
 	m.wg.Add(1)
 	go func() {
 		defer m.wg.Done()
@@ -48,15 +55,29 @@ func (m migrate) migrateRedisTasks(t iface.Task, cat string) {
 	}()
 }
 
-func (m migrate) performMigrateTasks(t iface.Task, cat string) {
+func (m migrate) performMigrateTasks(t iface.Task, cat MigrateType) {
 	c, ok := m.conn.Load(t.OnConnect())
 	if !ok {
 		m.logger.Errorf("unable to find connect, name=%s", t.OnConnect())
 		return
 	}
 	q := rdq.NewRedisQueue(c.(*redis.Client))
-	err := q.Migrate(m.ctx, t.OnQueue(), q.GetDelayedKey(t.OnQueue()))
+	moveTo := m.getMigrateQueueKey(q, t.OnQueue(), cat)
+	if moveTo == "" {
+		return
+	}
+	err := q.Migrate(m.ctx, t.OnQueue(), moveTo)
 	if err != nil {
 		m.logger.Errorf("execute migrate %s task, queue=%s", cat, t.OnQueue())
 	}
+}
+
+func (m migrate) getMigrateQueueKey(q *rdq.Queue, qn string, cat MigrateType) string {
+	switch cat {
+	case MigrateAck:
+		return q.GetReservedKey(qn)
+	case MigrateDelay:
+		return q.GetDelayedKey(qn)
+	}
+	return ""
 }
