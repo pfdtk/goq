@@ -2,8 +2,8 @@ package goq
 
 import (
 	"context"
+	"github.com/pfdtk/goq/common"
 	"github.com/pfdtk/goq/common/cst"
-	"github.com/pfdtk/goq/internal/common"
 	"github.com/pfdtk/goq/internal/connect"
 	"go.uber.org/zap"
 	"testing"

@@ -2,8 +2,8 @@ package goq
 
 import (
 	"context"
+	"github.com/pfdtk/goq/common"
 	"github.com/pfdtk/goq/iface"
-	"github.com/pfdtk/goq/internal/common"
 	"golang.org/x/sys/unix"
 	"os"
 	"os/signal"

@@ -2,8 +2,8 @@ package iface
 
 import (
 	"context"
+	"github.com/pfdtk/goq/common"
 	"github.com/pfdtk/goq/common/cst"
-	"github.com/pfdtk/goq/internal/common"
 	"time"
 )
 
