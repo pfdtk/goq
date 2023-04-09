@@ -42,6 +42,7 @@ func (w *worker) StartConsuming() error {
 func (w *worker) StopConsuming() {
 	w.logger.Info("stopping worker...")
 	close(w.stopRun)
+	close(w.jobChannel)
 }
 
 // consume only pop common from queue and send to work channel
@@ -52,13 +53,11 @@ func (w *worker) consume() {
 		for {
 			select {
 			case <-w.stopRun:
-				close(w.jobChannel)
 				return
 			case w.maxWorker <- struct{}{}:
 				// select is range, so check before run
 				select {
 				case <-w.stopRun:
-					close(w.jobChannel)
 					return
 				default:
 				}
@@ -75,8 +74,10 @@ func (w *worker) consume() {
 					w.logger.Error(err)
 					// release token
 					<-w.maxWorker
+					continue
 				}
 				w.logger.Infof("got next job to process, id=%s, name=%s", job.Id, job.Name)
+				// todo case when channel is close
 				w.jobChannel <- job
 			}
 		}

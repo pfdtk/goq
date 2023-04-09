@@ -48,9 +48,11 @@ func (m migrate) migrateRedisTasks(t iface.Task, cat MigrateType) {
 			select {
 			case <-m.stopRun:
 				m.logger.Info("stopping migrate redis ack timeout tasks, name=%s", t.GetName())
+				timer.Stop()
 				return
 			case <-timer.C:
 				m.performMigrateTasks(t, cat)
+				timer.Reset(m.interval)
 			}
 		}
 	}()
