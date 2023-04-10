@@ -4,7 +4,6 @@ import (
 	"context"
 	"github.com/pfdtk/goq/common"
 	"github.com/pfdtk/goq/common/cst"
-	"time"
 )
 
 type Task interface {
@@ -22,7 +21,7 @@ type Task interface {
 	// CanRun check if task can run, e.g.: rate limit
 	CanRun() bool
 	// Backoff retry delay when exception throw
-	Backoff() time.Time
+	Backoff() uint
 	// Priority task priority
 	Priority() int
 	// Retries how many times to retry process

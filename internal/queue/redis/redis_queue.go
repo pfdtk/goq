@@ -63,12 +63,12 @@ func NewRedisQueue(client *redis.Client) *Queue {
 	return &Queue{client: client}
 }
 
-func (r Queue) Size(ctx context.Context, queue string) (int64, error) {
+func (r *Queue) Size(ctx context.Context, queue string) (int64, error) {
 	size, err := r.client.LLen(ctx, queue).Result()
 	return size, err
 }
 
-func (r Queue) Push(ctx context.Context, message *common.Message) error {
+func (r *Queue) Push(ctx context.Context, message *common.Message) error {
 	bytes, err := json.Marshal(message)
 	if err != nil {
 		return err
@@ -77,7 +77,7 @@ func (r Queue) Push(ctx context.Context, message *common.Message) error {
 	return err
 }
 
-func (r Queue) Later(ctx context.Context, message *common.Message, at time.Time) error {
+func (r *Queue) Later(ctx context.Context, message *common.Message, at time.Time) error {
 	queue := r.GetDelayedKey(message.Queue)
 	bytes, err := json.Marshal(message)
 	if err != nil {
@@ -92,7 +92,7 @@ func (r Queue) Later(ctx context.Context, message *common.Message, at time.Time)
 	return err
 }
 
-func (r Queue) Pop(ctx context.Context, queue string) (*common.Message, error) {
+func (r *Queue) Pop(ctx context.Context, queue string) (*common.Message, error) {
 	keys := []string{queue, r.GetReservedKey(queue)}
 	argv := []any{time.Now().Unix()}
 	val, err := popScript.Run(ctx, r.client, keys, argv...).Result()
@@ -111,21 +111,30 @@ func (r Queue) Pop(ctx context.Context, queue string) (*common.Message, error) {
 	if err != nil {
 		return nil, err
 	}
-	msg.Reserved = res[1]
+	msg.Attempts = msg.Attempts + 1
+	msg.Reserved = &common.Reserved{
+		Message: &msg,
+		Payload: res[1],
+	}
 	return &msg, nil
 }
 
-func (r Queue) Migrate(ctx context.Context, from string, to string) error {
+func (r *Queue) Release(ctx context.Context, message *common.Message, at time.Time) error {
+	// todo
+	return nil
+}
+
+func (r *Queue) Migrate(ctx context.Context, from string, to string) error {
 	keys := []string{from, to}
 	argv := []any{time.Now().Unix()}
 	_, err := migrateScript.Run(ctx, r.client, keys, argv...).Result()
 	return err
 }
 
-func (r Queue) GetReservedKey(queue string) string {
+func (r *Queue) GetReservedKey(queue string) string {
 	return queue + ":reserved"
 }
 
-func (r Queue) GetDelayedKey(queue string) string {
+func (r *Queue) GetDelayedKey(queue string) string {
 	return queue + ":delayed"
 }

@@ -2,7 +2,6 @@ package common
 
 import (
 	"github.com/pfdtk/goq/common/cst"
-	"time"
 )
 
 type BaseTask struct {
@@ -24,8 +23,8 @@ func (b BaseTask) CanRun() bool {
 	return true
 }
 
-func (b BaseTask) Backoff() time.Time {
-	return time.Now().Add(0 * time.Second)
+func (b BaseTask) Backoff() uint {
+	return 0
 }
 
 func (b BaseTask) Priority() int {

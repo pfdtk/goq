@@ -11,22 +11,26 @@ type Queue struct {
 	client *sqs.Client
 }
 
-func (s Queue) Size(ctx context.Context, queue string) (int64, error) {
+func NewSqsQueue(client *sqs.Client) *Queue {
+	return &Queue{client: client}
+}
+
+func (s *Queue) Size(ctx context.Context, queue string) (int64, error) {
 	return 0, nil
 }
 
-func (s Queue) Push(ctx context.Context, message *common.Message) error {
+func (s *Queue) Push(ctx context.Context, message *common.Message) error {
 	return nil
 }
 
-func (s Queue) Later(ctx context.Context, message *common.Message, at time.Time) error {
+func (s *Queue) Later(ctx context.Context, message *common.Message, at time.Time) error {
 	return nil
 }
 
-func (s Queue) Pop(ctx context.Context, queue string) (*common.Message, error) {
+func (s *Queue) Pop(ctx context.Context, queue string) (*common.Message, error) {
 	return nil, nil
 }
 
-func NewSqsQueue(client *sqs.Client) *Queue {
-	return &Queue{client: client}
+func (s *Queue) Release(ctx context.Context, message *common.Message, at time.Time) error {
+	return nil
 }

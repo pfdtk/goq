@@ -17,8 +17,7 @@ import (
 )
 
 var (
-	ErrEmptyJob    = errors.New("no jobs are ready for processing")
-	ErrWorkExpired = errors.New("task process expired")
+	ErrEmptyJob = errors.New("no jobs are ready for processing")
 )
 
 type worker struct {
@@ -128,10 +127,11 @@ func (w *worker) runTask(job *common.Job) {
 		go func() {
 			res, err := w.perform(job)
 			if err != nil {
-				w.handleJobError(job, err)
+				// todo err event handle
+			} else {
+				w.logger.Infof("job has been processed, id=%s, name=%s", job.Id, job.Name)
+				prh <- res
 			}
-			w.logger.Infof("job has been processed, id=%s, name=%s", job.Id, job.Name)
-			prh <- res
 		}()
 		// wait for response
 		select {
@@ -139,8 +139,8 @@ func (w *worker) runTask(job *common.Job) {
 			// todo write to backend
 			return
 		case <-ctx.Done():
+			// todo error handle
 			w.logger.Warnf("tasks has been reach it`s deadline, id=%s, name=%s", job.Id, job.Name)
-			w.handleJobError(job, ErrWorkExpired)
 			return
 		}
 	}()
@@ -158,8 +158,25 @@ func (w *worker) perform(job *common.Job) (res any, err error) {
 	if ok {
 		task := v.(iface.Task)
 		res, err = task.Run(w.ctx, job)
+		if err != nil {
+			w.handleJobPerformError(task, job, err)
+		}
 	}
 	return
+}
+
+func (w *worker) getQueue(t iface.Task) iface.Queue {
+	c, ok := w.conn.Load(t.OnConnect())
+	if !ok {
+		return nil
+	}
+	switch t.QueueType() {
+	case cst.Redis:
+		return rdq.NewRedisQueue(c.(*redis.Client))
+	case cst.Sqs:
+		return sqsq.NewSqsQueue(c.(*sqs.Client))
+	}
+	return nil
 }
 
 func (w *worker) getNextJob() (*common.Job, error) {
@@ -167,23 +184,13 @@ func (w *worker) getNextJob() (*common.Job, error) {
 		if t.GetStatus() == cst.Disable || !t.CanRun() {
 			continue
 		}
-		c, ok := w.conn.Load(t.OnConnect())
-		if !ok {
+		q := w.getQueue(t)
+		if q == nil {
 			continue
 		}
-		switch t.QueueType() {
-		case cst.Redis:
-			q := rdq.NewRedisQueue(c.(*redis.Client))
-			job, err := w.getJob(q, t.OnQueue())
-			if err == nil {
-				return job, nil
-			}
-		case cst.Sqs:
-			q := sqsq.NewSqsQueue(c.(*sqs.Client))
-			job, err := w.getJob(q, t.OnQueue())
-			if err == nil {
-				return job, nil
-			}
+		job, err := w.getJob(q, t.OnQueue())
+		if err == nil {
+			return job, nil
 		}
 	}
 	return nil, ErrEmptyJob
@@ -193,12 +200,14 @@ func (w *worker) getJob(q iface.Queue, qn string) (*common.Job, error) {
 	msg, err := q.Pop(w.ctx, qn)
 	if err == nil {
 		return &common.Job{
-			Id:       msg.ID,
-			Name:     msg.Type,
-			Queue:    msg.Queue,
-			Payload:  msg.Payload,
-			Timeout:  msg.Timeout,
-			Attempts: msg.Attempts,
+			Id:         msg.ID,
+			Name:       msg.Type,
+			Queue:      msg.Queue,
+			Payload:    msg.Payload,
+			Timeout:    msg.Timeout,
+			Attempts:   msg.Attempts,
+			Retries:    msg.Retries,
+			RawMessage: msg,
 		}, nil
 	}
 	return nil, err
@@ -208,6 +217,20 @@ func (w *worker) handleWorkerStopRun() {
 
 }
 
-func (w *worker) handleJobError(_ *common.Job, _ error) {
+func (w *worker) handleJobPerformError(task iface.Task, job *common.Job, _ error) {
+	if !job.IsReachMacAttempts() {
+		// if retry fail, we do not lost the message
+		// because ack is not call, message will visibility again after timeout
+		_ = w.retry(task, job)
+	}
+}
 
+func (w *worker) retry(task iface.Task, job *common.Job) (err error) {
+	backoff := task.Backoff()
+	if backoff != 0 {
+		at := time.Now().Add(time.Duration(backoff) * time.Second)
+		q := w.getQueue(task)
+		err = q.Release(w.ctx, job.RawMessage.Reserved.Message, at)
+	}
+	return
 }

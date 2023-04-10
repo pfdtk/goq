@@ -15,8 +15,12 @@ type Job struct {
 	Timeout int64
 	// Payload job Payload
 	Payload []byte
+	// Retries max retry times
+	Retries uint
 	// how many times job has been tried
 	Attempts uint
+	// RawMessage raw message
+	RawMessage *Message
 }
 
 func (j *Job) TimeoutAt() time.Time {
@@ -24,4 +28,8 @@ func (j *Job) TimeoutAt() time.Time {
 		return time.Now().Add(defaultTimeout)
 	}
 	return time.Now().Add(time.Duration(j.Timeout) * time.Second)
+}
+
+func (j *Job) IsReachMacAttempts() bool {
+	return j.Attempts >= j.Retries
 }
