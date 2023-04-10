@@ -3,7 +3,6 @@ package goq
 import (
 	"context"
 	"github.com/pfdtk/goq/common"
-	"github.com/pfdtk/goq/common/cst"
 	"github.com/pfdtk/goq/internal/connect"
 	"go.uber.org/zap"
 	"testing"
@@ -11,6 +10,7 @@ import (
 )
 
 type TestTask struct {
+	common.BaseTask
 }
 
 func (t TestTask) Run(_ context.Context, job *common.Job) (any, error) {
@@ -18,10 +18,6 @@ func (t TestTask) Run(_ context.Context, job *common.Job) (any, error) {
 	time.Sleep(10 * time.Second)
 	log.Info("touch test task")
 	return nil, nil
-}
-
-func (t TestTask) QueueType() cst.Type {
-	return cst.Redis
 }
 
 func (t TestTask) OnConnect() string {
@@ -34,26 +30,6 @@ func (t TestTask) OnQueue() string {
 
 func (t TestTask) GetName() string {
 	return "test"
-}
-
-func (t TestTask) GetStatus() uint32 {
-	return cst.Active
-}
-
-func (t TestTask) CanRun() bool {
-	return true
-}
-
-func (t TestTask) Backoff() time.Time {
-	return time.Now().Add(1 * time.Second)
-}
-
-func (t TestTask) Priority() int {
-	return cst.P0
-}
-
-func (t TestTask) Retries() int {
-	return 0
 }
 
 func TestServer_Start(t *testing.T) {
