@@ -17,7 +17,8 @@ import (
 )
 
 var (
-	ErrEmptyJob = errors.New("no jobs are ready for processing")
+	ErrEmptyJob    = errors.New("no jobs are ready for processing")
+	ErrWorkExpired = errors.New("task process expired")
 )
 
 type worker struct {
@@ -32,67 +33,73 @@ type worker struct {
 	logger     iface.Logger
 }
 
-func (w *worker) StartConsuming() error {
+func (w *worker) startConsuming() error {
 	w.sortTasks = utils.SortTask(w.tasks)
-	w.consume()
+	w.pop()
 	w.work()
 	return nil
 }
 
-func (w *worker) StopConsuming() {
+func (w *worker) stopConsuming() {
 	w.logger.Info("stopping worker...")
 	close(w.stopRun)
-	close(w.jobChannel)
+	// block until all workers have released the token
+	for i := 0; i < cap(w.maxWorker); i++ {
+		w.maxWorker <- struct{}{}
+	}
 }
 
-// consume only pop common from queue and send to work channel
-func (w *worker) consume() {
+func (w *worker) pop() {
 	w.wg.Add(1)
 	go func() {
 		defer w.wg.Done()
 		for {
 			select {
 			case <-w.stopRun:
+				w.logger.Info("got stop sign from pop")
 				return
 			case w.maxWorker <- struct{}{}:
-				// select is range, so check before run
-				select {
-				case <-w.stopRun:
-					return
-				default:
-				}
-				job, err := w.getNextJob()
-				switch {
-				case errors.Is(err, ErrEmptyJob):
-					w.logger.Info("no jobs are ready for processing on all queue")
-					// sleep 1 second when all queue are empty
-					time.Sleep(time.Second)
-					// release token
-					<-w.maxWorker
-					continue
-				case err != nil:
-					w.logger.Error(err)
-					// release token
-					<-w.maxWorker
-					continue
-				}
-				w.logger.Infof("got next job to process, id=%s, name=%s", job.Id, job.Name)
-				// todo case when channel is close
-				w.jobChannel <- job
+				w.readyToWork()
 			}
 		}
 	}()
 }
 
-// work process tasks
+func (w *worker) readyToWork() {
+	// select is range, so check before run
+	select {
+	case <-w.stopRun:
+		w.logger.Info("got stop sign from work")
+		return
+	default:
+	}
+	job, err := w.getNextJob()
+	switch {
+	case errors.Is(err, ErrEmptyJob):
+		w.logger.Info("no jobs are ready for processing on all queue")
+		// sleep 1 second when all queue are empty
+		time.Sleep(time.Second)
+		// release token
+		<-w.maxWorker
+		return
+	case err != nil:
+		w.logger.Error(err)
+		// release token
+		<-w.maxWorker
+		return
+	}
+	w.logger.Infof("got next job to process, id=%s, name=%s", job.Id, job.Name)
+	w.jobChannel <- job
+}
+
 func (w *worker) work() {
 	w.wg.Add(1)
 	go func() {
 		defer w.wg.Done()
 		for {
 			select {
-			// TODO when to exit, maybe still some msg on job channel, we need ack!
 			case <-w.stopRun:
+				w.handleWorkerStopRun()
 				w.logger.Info("worker has been stopped")
 				return
 			case job, ok := <-w.jobChannel:
@@ -119,19 +126,21 @@ func (w *worker) runTask(job *common.Job) {
 		}()
 		prh := make(chan any, 1)
 		go func() {
-			// todo handle err
-			res, _ := w.perform(job)
+			res, err := w.perform(job)
+			if err != nil {
+				w.handleJobError(job, err)
+			}
 			w.logger.Infof("job has been processed, id=%s, name=%s", job.Id, job.Name)
 			prh <- res
 		}()
 		// wait for response
 		select {
 		case <-prh:
+			// todo write to backend
 			return
 		case <-ctx.Done():
-			// TODO retry if necessary
-			// please note that, the task goroutine will not stop, even if deadline is reach
 			w.logger.Warnf("tasks has been reach it`s deadline, id=%s, name=%s", job.Id, job.Name)
+			w.handleJobError(job, ErrWorkExpired)
 			return
 		}
 	}()
@@ -193,4 +202,12 @@ func (w *worker) getJob(q iface.Queue, qn string) (*common.Job, error) {
 		}, nil
 	}
 	return nil, err
+}
+
+func (w *worker) handleWorkerStopRun() {
+
+}
+
+func (w *worker) handleJobError(_ *common.Job, _ error) {
+
 }

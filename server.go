@@ -19,6 +19,7 @@ type Server struct {
 	worker    *worker
 	wg        sync.WaitGroup
 	logger    iface.Logger
+	migrate   *migrate
 
 	// todo add event control
 	// todo add error handle
@@ -62,7 +63,7 @@ func (s *Server) startWorker(ctx context.Context) error {
 		conn:       &s.conn,
 	}
 	s.worker = worker
-	err := worker.StartConsuming()
+	err := worker.startConsuming()
 	return err
 }
 
@@ -75,8 +76,10 @@ func (s *Server) startMigrate(ctx context.Context) error {
 		logger:   s.logger,
 		conn:     &s.conn,
 		interval: 5 * time.Second,
+		stopRun:  make(chan struct{}),
 	}
-	return migrate.StartMigrate()
+	s.migrate = migrate
+	return migrate.startMigrate()
 }
 
 func (s *Server) waitSignals() {
@@ -97,7 +100,8 @@ func (s *Server) waitSignals() {
 
 func (s *Server) stopServer() {
 	s.logger.Warn("Gracefully down server...")
-	s.worker.StopConsuming()
+	s.migrate.stopMigrating()
+	s.worker.stopConsuming()
 }
 
 func (s *Server) RegisterTask(task iface.Task) {

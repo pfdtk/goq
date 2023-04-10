@@ -103,6 +103,9 @@ func (r Queue) Pop(ctx context.Context, queue string) (*common.Message, error) {
 	if err != nil {
 		return nil, err
 	}
+	if res[0] == "" {
+		return nil, redis.Nil
+	}
 	msg := common.Message{}
 	err = json.Unmarshal([]byte(res[0]), &msg)
 	if err != nil {

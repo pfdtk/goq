@@ -29,7 +29,7 @@ type migrate struct {
 	interval time.Duration
 }
 
-func (m migrate) StartMigrate() error {
+func (m *migrate) startMigrate() error {
 	redisTask := utils.GetRedisTask(m.tasks)
 	if len(redisTask) != 0 {
 		for _, t := range redisTask {
@@ -40,7 +40,12 @@ func (m migrate) StartMigrate() error {
 	return nil
 }
 
-func (m migrate) migrateRedisTasks(t iface.Task, cat MigrateType) {
+func (m *migrate) stopMigrating() {
+	m.logger.Info("stopping migrate...")
+	close(m.stopRun)
+}
+
+func (m *migrate) migrateRedisTasks(t iface.Task, cat MigrateType) {
 	m.wg.Add(1)
 	go func() {
 		defer m.wg.Done()
@@ -60,7 +65,7 @@ func (m migrate) migrateRedisTasks(t iface.Task, cat MigrateType) {
 	}()
 }
 
-func (m migrate) performMigrateTasks(t iface.Task, cat MigrateType) {
+func (m *migrate) performMigrateTasks(t iface.Task, cat MigrateType) {
 	c, ok := m.conn.Load(t.OnConnect())
 	if !ok {
 		m.logger.Errorf("unable to find connect, name=%s", t.OnConnect())
@@ -78,7 +83,7 @@ func (m migrate) performMigrateTasks(t iface.Task, cat MigrateType) {
 	}
 }
 
-func (m migrate) getMigrateQueueKey(q *rdq.Queue, qn string, cat MigrateType) string {
+func (m *migrate) getMigrateQueueKey(q *rdq.Queue, qn string, cat MigrateType) string {
 	switch cat {
 	case MigrateAck:
 		return q.GetReservedKey(qn)
