@@ -2,13 +2,11 @@ package goq
 
 import (
 	"context"
-	"github.com/pfdtk/goq/common/job"
 	"github.com/pfdtk/goq/iface"
 	"golang.org/x/sys/unix"
 	"os"
 	"os/signal"
 	"sync"
-	"time"
 )
 
 type Server struct {
@@ -20,9 +18,8 @@ type Server struct {
 	wg        sync.WaitGroup
 	logger    iface.Logger
 	migrate   *migrate
-
-	// todo add event control
-	// todo add error handle
+	// todo handle
+	taskErrorHandle []iface.ErrorJobHandler
 }
 
 func NewServer(config *ServerConfig) *Server {
@@ -52,16 +49,7 @@ func (s *Server) Start(ctx context.Context) error {
 
 func (s *Server) startWorker(ctx context.Context) error {
 	s.logger.Info("starting worker...")
-	worker := &worker{
-		wg:         &s.wg,
-		tasks:      &s.tasks,
-		maxWorker:  make(chan struct{}, s.maxWorker),
-		stopRun:    make(chan struct{}),
-		jobChannel: make(chan *job.Job, s.maxWorker),
-		ctx:        ctx,
-		logger:     s.logger,
-		conn:       &s.conn,
-	}
+	worker := newWorker(ctx, s)
 	s.worker = worker
 	err := worker.startConsuming()
 	return err
@@ -69,17 +57,23 @@ func (s *Server) startWorker(ctx context.Context) error {
 
 func (s *Server) startMigrate(ctx context.Context) error {
 	s.logger.Info("starting migrate...")
-	migrate := &migrate{
-		wg:       &s.wg,
-		tasks:    &s.tasks,
-		ctx:      ctx,
-		logger:   s.logger,
-		conn:     &s.conn,
-		interval: 5 * time.Second,
-		stopRun:  make(chan struct{}),
-	}
+	migrate := newMigrate(ctx, s)
 	s.migrate = migrate
 	return migrate.startMigrate()
+}
+
+func (s *Server) stopServer() {
+	s.logger.Warn("Gracefully down server...")
+	s.migrate.stopMigrating()
+	s.worker.stopConsuming()
+}
+
+func (s *Server) RegisterTask(task iface.Task) {
+	s.tasks.Store(task.GetName(), task)
+}
+
+func (s *Server) AddConnect(name string, conn any) {
+	s.conn.Store(name, conn)
 }
 
 func (s *Server) waitSignals() {
@@ -96,18 +90,4 @@ func (s *Server) waitSignals() {
 		default:
 		}
 	}
-}
-
-func (s *Server) stopServer() {
-	s.logger.Warn("Gracefully down server...")
-	s.migrate.stopMigrating()
-	s.worker.stopConsuming()
-}
-
-func (s *Server) RegisterTask(task iface.Task) {
-	s.tasks.Store(task.GetName(), task)
-}
-
-func (s *Server) AddConnect(name string, conn any) {
-	s.conn.Store(name, conn)
 }

@@ -17,19 +17,33 @@ import (
 )
 
 var (
-	ErrEmptyJob = errors.New("no jobs are ready for processing")
+	EmptyJobError = errors.New("no jobs are ready for processing")
 )
 
 type worker struct {
-	conn       *sync.Map
-	tasks      *sync.Map
-	sortTasks  []iface.Task
-	wg         *sync.WaitGroup
-	stopRun    chan struct{}
-	maxWorker  chan struct{}
-	jobChannel chan *job.Job
-	ctx        context.Context
-	logger     iface.Logger
+	conn            *sync.Map
+	tasks           *sync.Map
+	sortTasks       []iface.Task
+	wg              *sync.WaitGroup
+	stopRun         chan struct{}
+	maxWorker       chan struct{}
+	jobChannel      chan *job.Job
+	ctx             context.Context
+	logger          iface.Logger
+	taskErrorHandle []iface.ErrorJobHandler
+}
+
+func newWorker(ctx context.Context, s *Server) *worker {
+	return &worker{
+		wg:         &s.wg,
+		tasks:      &s.tasks,
+		maxWorker:  make(chan struct{}, s.maxWorker),
+		stopRun:    make(chan struct{}),
+		jobChannel: make(chan *job.Job, s.maxWorker),
+		ctx:        ctx,
+		logger:     s.logger,
+		conn:       &s.conn,
+	}
 }
 
 func (w *worker) startConsuming() error {
@@ -46,6 +60,7 @@ func (w *worker) stopConsuming() {
 	for i := 0; i < cap(w.maxWorker); i++ {
 		w.maxWorker <- struct{}{}
 	}
+	w.logger.Info("worker stopped")
 }
 
 func (w *worker) pop() {
@@ -55,7 +70,7 @@ func (w *worker) pop() {
 		for {
 			select {
 			case <-w.stopRun:
-				w.logger.Info("got stop sign from pop")
+				w.logger.Debug("receive stop sign from pop")
 				return
 			case w.maxWorker <- struct{}{}:
 				w.readyToWork()
@@ -68,26 +83,22 @@ func (w *worker) readyToWork() {
 	// select is range, so check before run
 	select {
 	case <-w.stopRun:
-		w.logger.Info("got stop sign from work")
 		return
 	default:
 	}
 	j, err := w.getNextJob()
 	switch {
-	case errors.Is(err, ErrEmptyJob):
-		w.logger.Info("no jobs are ready for processing on all queue")
-		// sleep 1 second when all queue are empty
+	case errors.Is(err, EmptyJobError):
+		w.logger.Debug(err.Error())
 		time.Sleep(time.Second)
-		// release token
 		<-w.maxWorker
 		return
 	case err != nil:
-		w.logger.Error(err)
-		// release token
+		// todo error handle
 		<-w.maxWorker
 		return
 	}
-	w.logger.Infof("got next j to process, id=%s, name=%s", j.Id(), j.Name())
+	w.logger.Debugf("job receive, id=%s, name=%s", j.Id(), j.Name())
 	w.jobChannel <- j
 }
 
@@ -98,16 +109,13 @@ func (w *worker) work() {
 		for {
 			select {
 			case <-w.stopRun:
-				w.handleWorkerStopRun()
-				w.logger.Info("worker has been stopped")
 				return
 			case j, ok := <-w.jobChannel:
 				// stop working when channel was closed
 				if !ok {
-					w.logger.Info("worker has been stopped")
 					return
 				}
-				w.logger.Infof("start to process j, id=%s, name=%s", j.Id(), j.Name())
+				w.logger.Debugf("processing job, id=%s, name=%s", j.Id(), j.Name())
 				go w.runTask(j)
 			}
 		}
@@ -116,20 +124,15 @@ func (w *worker) work() {
 
 func (w *worker) runTask(job *job.Job) {
 	go func() {
-		// goroutine timeout control
 		ctx, cancel := context.WithDeadline(w.ctx, job.TimeoutAt())
 		defer func() {
-			w.logger.Infof("task defer, release token, id=%s, name=%s", job.Id(), job.Name())
 			<-w.maxWorker
 			cancel()
 		}()
 		prh := make(chan any, 1)
 		go func() {
 			res, err := w.perform(job)
-			if err != nil {
-				// todo err event handle
-			} else {
-				w.logger.Infof("job has been processed, id=%s, name=%s", job.Id(), job.Name())
+			if err == nil {
 				prh <- res
 			}
 		}()
@@ -140,7 +143,7 @@ func (w *worker) runTask(job *job.Job) {
 			return
 		case <-ctx.Done():
 			// todo error handle
-			w.logger.Warnf("tasks has been reach it`s deadline, id=%s, name=%s", job.Id(), job.Name())
+			w.logger.Debugf("job timeout, id=%s, name=%s", job.Id(), job.Name())
 			return
 		}
 	}()
@@ -160,6 +163,8 @@ func (w *worker) perform(job *job.Job) (res any, err error) {
 		res, err = task.Run(w.ctx, job)
 		if err != nil {
 			w.handleJobPerformError(task, job, err)
+		} else {
+			w.logger.Debugf("job processed, id=%s, name=%s", job.Id(), job.Name())
 		}
 	}
 	return
@@ -193,7 +198,7 @@ func (w *worker) getNextJob() (*job.Job, error) {
 			return j, nil
 		}
 	}
-	return nil, ErrEmptyJob
+	return nil, EmptyJobError
 }
 
 func (w *worker) getJob(q iface.Queue, qn string) (*job.Job, error) {
@@ -204,15 +209,14 @@ func (w *worker) getJob(q iface.Queue, qn string) (*job.Job, error) {
 	return nil, err
 }
 
-func (w *worker) handleWorkerStopRun() {
-
-}
-
 func (w *worker) handleJobPerformError(task iface.Task, job *job.Job, _ error) {
 	if !job.IsReachMacAttempts() {
-		// if retry fail, we do not lost the message
-		// because ack is not call, message will visibility again after timeout
 		_ = w.retry(task, job)
+	}
+	if len(w.taskErrorHandle) != 0 {
+		for _, h := range w.taskErrorHandle {
+			h.Handle(w.ctx, task)
+		}
 	}
 }
 

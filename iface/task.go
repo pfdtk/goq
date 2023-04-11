@@ -10,6 +10,8 @@ type Task interface {
 	Run(context.Context, *job.Job) (any, error)
 	// QueueType which queue type, e.g.: RedisQueue
 	QueueType() cst.Type
+	// GetJob return current running job
+	GetJob() *job.Job
 	// OnConnect queue on which connect
 	OnConnect() string
 	// OnQueue these are some queue on one connect, specify which one to consuming

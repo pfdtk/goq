@@ -29,6 +29,18 @@ type migrate struct {
 	interval time.Duration
 }
 
+func newMigrate(ctx context.Context, s *Server) *migrate {
+	return &migrate{
+		wg:       &s.wg,
+		tasks:    &s.tasks,
+		ctx:      ctx,
+		logger:   s.logger,
+		conn:     &s.conn,
+		interval: 5 * time.Second,
+		stopRun:  make(chan struct{}),
+	}
+}
+
 func (m *migrate) startMigrate() error {
 	redisTask := utils.GetRedisTask(m.tasks)
 	if len(redisTask) != 0 {
