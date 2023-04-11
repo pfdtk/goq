@@ -2,7 +2,8 @@ package goq
 
 import (
 	"context"
-	"github.com/pfdtk/goq/common"
+	"github.com/pfdtk/goq/common/job"
+	"github.com/pfdtk/goq/common/task"
 	"github.com/pfdtk/goq/internal/connect"
 	"go.uber.org/zap"
 	"testing"
@@ -10,13 +11,14 @@ import (
 )
 
 type TestTask struct {
-	common.BaseTask
+	task.BaseTask
 }
 
-func (t TestTask) Run(_ context.Context, job *common.Job) (any, error) {
+func (t TestTask) Run(_ context.Context, j *job.Job) (any, error) {
 	log := zap.S()
 	time.Sleep(10 * time.Second)
 	log.Info("touch test task")
+	log.Info(j)
 	return nil, nil
 }
 

@@ -2,7 +2,7 @@ package goq
 
 import (
 	"context"
-	"github.com/pfdtk/goq/common"
+	"github.com/pfdtk/goq/common/job"
 	"github.com/pfdtk/goq/iface"
 	"golang.org/x/sys/unix"
 	"os"
@@ -57,7 +57,7 @@ func (s *Server) startWorker(ctx context.Context) error {
 		tasks:      &s.tasks,
 		maxWorker:  make(chan struct{}, s.maxWorker),
 		stopRun:    make(chan struct{}),
-		jobChannel: make(chan *common.Job, s.maxWorker),
+		jobChannel: make(chan *job.Job, s.maxWorker),
 		ctx:        ctx,
 		logger:     s.logger,
 		conn:       &s.conn,

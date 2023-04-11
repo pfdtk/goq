@@ -3,7 +3,7 @@ package redis
 import (
 	"context"
 	"encoding/json"
-	"github.com/pfdtk/goq/common"
+	"github.com/pfdtk/goq/common/message"
 	"github.com/redis/go-redis/v9"
 	"github.com/spf13/cast"
 	"time"
@@ -55,6 +55,23 @@ end
 return val
 `)
 
+// Get the Lua script for releasing reserved jobs.
+//
+//	*
+//	* KEYS[1] - The "delayed" queue we release jobs onto, for example: queues:foo:delayed
+//	* KEYS[2] - The queue the jobs are currently on, for example: queues:foo:reserved
+//	* ARGV[1] - The raw payload of the job to add to the "delayed" queue
+//	* ARGV[2] - The UNIX timestamp at which the job should become available
+var releaseScript = redis.NewScript(`
+-- Remove the job from the current queue...
+redis.call('zrem', KEYS[2], ARGV[1])
+
+-- Add the job onto the "delayed" queue...
+redis.call('zadd', KEYS[1], ARGV[2], ARGV[1])
+
+return true
+`)
+
 type Queue struct {
 	client *redis.Client
 }
@@ -68,7 +85,7 @@ func (r *Queue) Size(ctx context.Context, queue string) (int64, error) {
 	return size, err
 }
 
-func (r *Queue) Push(ctx context.Context, message *common.Message) error {
+func (r *Queue) Push(ctx context.Context, message *message.Message) error {
 	bytes, err := json.Marshal(message)
 	if err != nil {
 		return err
@@ -77,7 +94,7 @@ func (r *Queue) Push(ctx context.Context, message *common.Message) error {
 	return err
 }
 
-func (r *Queue) Later(ctx context.Context, message *common.Message, at time.Time) error {
+func (r *Queue) Later(ctx context.Context, message *message.Message, at time.Time) error {
 	queue := r.GetDelayedKey(message.Queue)
 	bytes, err := json.Marshal(message)
 	if err != nil {
@@ -92,7 +109,7 @@ func (r *Queue) Later(ctx context.Context, message *common.Message, at time.Time
 	return err
 }
 
-func (r *Queue) Pop(ctx context.Context, queue string) (*common.Message, error) {
+func (r *Queue) Pop(ctx context.Context, queue string) (*message.Message, error) {
 	keys := []string{queue, r.GetReservedKey(queue)}
 	argv := []any{time.Now().Unix()}
 	val, err := popScript.Run(ctx, r.client, keys, argv...).Result()
@@ -106,21 +123,23 @@ func (r *Queue) Pop(ctx context.Context, queue string) (*common.Message, error) 
 	if res[0] == "" {
 		return nil, redis.Nil
 	}
-	msg := common.Message{}
+	msg := message.Message{}
 	err = json.Unmarshal([]byte(res[0]), &msg)
 	if err != nil {
 		return nil, err
 	}
 	msg.Attempts = msg.Attempts + 1
-	msg.Reserved = &common.Reserved{
-		Message: &msg,
-		Payload: res[1],
-	}
+	msg.Reserved = res[1]
 	return &msg, nil
 }
 
-func (r *Queue) Release(ctx context.Context, message *common.Message, at time.Time) error {
-	// todo
+func (r *Queue) Release(ctx context.Context, queue string, message string, at time.Time) error {
+	keys := []string{r.GetDelayedKey(queue), r.GetReservedKey(queue)}
+	argv := []any{message, at.Unix()}
+	_, err := releaseScript.Run(ctx, r.client, keys, argv...).Result()
+	if err != nil {
+		return err
+	}
 	return nil
 }
 

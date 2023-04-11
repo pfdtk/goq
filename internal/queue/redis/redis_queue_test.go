@@ -3,7 +3,7 @@ package redis
 import (
 	"context"
 	"errors"
-	"github.com/pfdtk/goq/common"
+	"github.com/pfdtk/goq/common/message"
 	"github.com/pfdtk/goq/internal/connect"
 	"github.com/redis/go-redis/v9"
 	"testing"
@@ -25,7 +25,7 @@ func getQueue() *Queue {
 
 func TestRedisQueue_Push(t *testing.T) {
 	q := getQueue()
-	err := q.Push(context.Background(), &common.Message{
+	err := q.Push(context.Background(), &message.Message{
 		Type:    "test",
 		Payload: []byte("payload"),
 		ID:      "uuid-13",
@@ -39,7 +39,7 @@ func TestRedisQueue_Push(t *testing.T) {
 
 func TestQueue_Later(t *testing.T) {
 	q := getQueue()
-	err := q.Later(context.Background(), &common.Message{
+	err := q.Later(context.Background(), &message.Message{
 		Type:    "test",
 		Payload: []byte("payload"),
 		ID:      "uuid-13",
@@ -63,6 +63,36 @@ func TestQueue_Size(t *testing.T) {
 func TestQueue_Pop(t *testing.T) {
 	q := getQueue()
 	s, err := q.Pop(context.Background(), queueName)
+	if err != nil && !errors.Is(err, redis.Nil) {
+		t.Error(err)
+	} else {
+		t.Log(s)
+	}
+}
+
+func TestQueue_Release(t *testing.T) {
+	q := getQueue()
+
+	err := q.Push(context.Background(), &message.Message{
+		Type:    "test",
+		Payload: []byte("payload"),
+		ID:      "uuid-13",
+		Queue:   queueName,
+		Timeout: 15,
+	})
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	s, err := q.Pop(context.Background(), queueName)
+	if err != nil && !errors.Is(err, redis.Nil) {
+		t.Error(err)
+		return
+	}
+
+	at := time.Now().Add(10 * time.Minute)
+	err = q.Release(context.Background(), queueName, s.Reserved, at)
 	if err != nil && !errors.Is(err, redis.Nil) {
 		t.Error(err)
 	} else {

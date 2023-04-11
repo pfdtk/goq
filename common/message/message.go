@@ -1,4 +1,4 @@
-package common
+package message
 
 type Message struct {
 	// witch task
@@ -16,10 +16,5 @@ type Message struct {
 	// how many times job has been tried
 	Attempts uint `json:"attempts"`
 	// use for visibility timeout and move raw message back to list
-	Reserved *Reserved `json:"-"`
-}
-
-type Reserved struct {
-	Message *Message
-	Payload string
+	Reserved string `json:"-"`
 }

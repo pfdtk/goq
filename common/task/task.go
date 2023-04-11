@@ -1,4 +1,4 @@
-package common
+package task
 
 import (
 	"github.com/pfdtk/goq/common/cst"

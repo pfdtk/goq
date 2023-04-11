@@ -2,12 +2,12 @@ package iface
 
 import (
 	"context"
-	"github.com/pfdtk/goq/common"
 	"github.com/pfdtk/goq/common/cst"
+	"github.com/pfdtk/goq/common/job"
 )
 
 type Task interface {
-	Run(context.Context, *common.Job) (any, error)
+	Run(context.Context, *job.Job) (any, error)
 	// QueueType which queue type, e.g.: RedisQueue
 	QueueType() cst.Type
 	// OnConnect queue on which connect
