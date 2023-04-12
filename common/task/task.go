@@ -31,6 +31,6 @@ func (b BaseTask) Priority() int {
 	return cst.P0
 }
 
-func (b BaseTask) Retries() int {
+func (b BaseTask) Retries() uint {
 	return 0
 }

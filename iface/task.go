@@ -27,5 +27,5 @@ type Task interface {
 	// Priority task priority
 	Priority() int
 	// Retries how many times to retry process
-	Retries() int
+	Retries() uint
 }

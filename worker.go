@@ -17,7 +17,8 @@ import (
 )
 
 var (
-	EmptyJobError = errors.New("no jobs are ready for processing")
+	EmptyJobError       = errors.New("no jobs are ready for processing")
+	JobExecTimeoutError = errors.New("job exec timeout")
 )
 
 type worker struct {
@@ -31,6 +32,7 @@ type worker struct {
 	ctx             context.Context
 	logger          iface.Logger
 	taskErrorHandle []iface.ErrorJobHandler
+	errorHandle     []iface.ErrorHandler
 }
 
 func newWorker(ctx context.Context, s *Server) *worker {
@@ -70,7 +72,7 @@ func (w *worker) pop() {
 		for {
 			select {
 			case <-w.stopRun:
-				w.logger.Debug("receive stop sign from pop")
+				w.logger.Debug("received stop sign")
 				return
 			case w.maxWorker <- struct{}{}:
 				w.readyToWork()
@@ -89,16 +91,16 @@ func (w *worker) readyToWork() {
 	j, err := w.getNextJob()
 	switch {
 	case errors.Is(err, EmptyJobError):
-		w.logger.Debug(err.Error())
+		w.handleError(err)
 		time.Sleep(time.Second)
 		<-w.maxWorker
 		return
 	case err != nil:
-		// todo error handle
+		w.handleError(err)
 		<-w.maxWorker
 		return
 	}
-	w.logger.Debugf("job receive, id=%s, name=%s", j.Id(), j.Name())
+	w.logger.Debugf("job received, id=%s, name=%s", j.Id(), j.Name())
 	w.jobChannel <- j
 }
 
@@ -115,7 +117,7 @@ func (w *worker) work() {
 				if !ok {
 					return
 				}
-				w.logger.Debugf("processing job, id=%s, name=%s", j.Id(), j.Name())
+				w.logger.Debugf("job processing, id=%s, name=%s", j.Id(), j.Name())
 				go w.runTask(j)
 			}
 		}
@@ -136,14 +138,13 @@ func (w *worker) runTask(job *job.Job) {
 				prh <- res
 			}
 		}()
-		// wait for response
 		select {
 		case <-prh:
-			// todo write to backend
+			// todo write response to backend
 			return
 		case <-ctx.Done():
-			// todo error handle
 			w.logger.Debugf("job timeout, id=%s, name=%s", job.Id(), job.Name())
+			w.handleError(JobExecTimeoutError)
 			return
 		}
 	}()
@@ -165,6 +166,7 @@ func (w *worker) perform(job *job.Job) (res any, err error) {
 			w.handleJobPerformError(task, job, err)
 		} else {
 			w.logger.Debugf("job processed, id=%s, name=%s", job.Id(), job.Name())
+			w.handleError(err)
 		}
 	}
 	return
@@ -217,6 +219,15 @@ func (w *worker) handleJobPerformError(task iface.Task, job *job.Job, _ error) {
 		for _, h := range w.taskErrorHandle {
 			h.Handle(w.ctx, task)
 		}
+	}
+}
+
+func (w *worker) handleError(err error) {
+	if len(w.errorHandle) == 0 {
+		return
+	}
+	for _, h := range w.errorHandle {
+		h.Handle(w.ctx, err)
 	}
 }
 

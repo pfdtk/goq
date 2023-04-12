@@ -10,11 +10,11 @@ import (
 	"time"
 )
 
-type MigrateType int
+type MigrateType string
 
 const (
-	MigrateAck MigrateType = iota
-	MigrateDelay
+	MigrateAck   MigrateType = "ack"
+	MigrateDelay MigrateType = "delay"
 )
 
 var undefined = ""
@@ -53,7 +53,7 @@ func (m *migrate) startMigrate() error {
 }
 
 func (m *migrate) stopMigrating() {
-	m.logger.Info("stopping migrate...")
+	m.logger.Info("stopping migration...")
 	close(m.stopRun)
 }
 
@@ -66,7 +66,7 @@ func (m *migrate) migrateRedisTasks(t iface.Task, cat MigrateType) {
 		for {
 			select {
 			case <-m.stopRun:
-				m.logger.Info("stopping migrate redis ack timeout tasks, name=%s", t.GetName())
+				m.logger.Info("stopping migrate redis tasks which is not ack, name=%s", t.GetName())
 				timer.Stop()
 				return
 			case <-timer.C:
