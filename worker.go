@@ -75,19 +75,13 @@ func (w *worker) pop() {
 				w.logger.Debug("received stop sign")
 				return
 			case w.maxWorker <- struct{}{}:
-				w.readyToWork()
+				go w.readyToWork()
 			}
 		}
 	}()
 }
 
 func (w *worker) readyToWork() {
-	// select is range, so check before run
-	select {
-	case <-w.stopRun:
-		return
-	default:
-	}
 	j, err := w.getNextJob()
 	switch {
 	case errors.Is(err, EmptyJobError):
@@ -151,16 +145,21 @@ func (w *worker) runTask(job *job.Job) {
 }
 
 func (w *worker) perform(job *job.Job) (res any, err error) {
+	var task iface.Task = nil
 	// recover err from tasks, so that program will not exit
 	defer func() {
 		if x := recover(); x != nil {
 			err = errors.New(string(debug.Stack()))
+			// todo check if task if nil
+			if task != nil {
+				w.handleJobPerformError(task, job, err)
+			}
 		}
 	}()
 	name := job.Name()
 	v, ok := w.tasks.Load(name)
 	if ok {
-		task := v.(iface.Task)
+		task = v.(iface.Task)
 		res, err = task.Run(w.ctx, job)
 		if err != nil {
 			w.handleJobPerformError(task, job, err)
