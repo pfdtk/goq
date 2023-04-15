@@ -96,7 +96,7 @@ func (w *worker) readyToWork() {
 		<-w.maxWorker
 		return
 	}
-	w.logger.Debugf("job received, id=%s, name=%s", j.Id(), j.Name())
+	w.logger.Infof("job received, id=%s, name=%s", j.Id(), j.Name())
 	w.jobChannel <- j
 }
 
@@ -113,7 +113,7 @@ func (w *worker) work() {
 				if !ok {
 					return
 				}
-				w.logger.Debugf("job processing, id=%s, name=%s", j.Id(), j.Name())
+				w.logger.Infof("job processing, id=%s, name=%s", j.Id(), j.Name())
 				go w.runTask(j)
 			}
 		}
@@ -121,31 +121,29 @@ func (w *worker) work() {
 }
 
 func (w *worker) runTask(job *task.Job) {
+	ctx, cancel := context.WithDeadline(w.ctx, job.TimeoutAt())
+	defer func() {
+		<-w.maxWorker
+		cancel()
+	}()
+	prh := make(chan any, 1)
 	go func() {
-		ctx, cancel := context.WithDeadline(w.ctx, job.TimeoutAt())
-		defer func() {
-			<-w.maxWorker
-			cancel()
-		}()
-		prh := make(chan any, 1)
-		go func() {
-			res, err := w.perform(job)
-			if err == nil {
-				prh <- res
-			} else {
-				prh <- err
-			}
-		}()
-		select {
-		case <-prh:
-			// todo write response to backend, prh may be an error
-			return
-		case <-ctx.Done():
-			w.logger.Debugf("job timeout, id=%s, name=%s", job.Id(), job.Name())
-			w.handleError(JobExecTimeoutError)
-			return
+		res, err := w.perform(job)
+		if err == nil {
+			prh <- res
+		} else {
+			prh <- err
 		}
 	}()
+	select {
+	case <-prh:
+		// todo write response to backend, prh may be an error
+		return
+	case <-ctx.Done():
+		w.logger.Infof("job timeout, id=%s, name=%s", job.Id(), job.Name())
+		w.handleError(JobExecTimeoutError)
+		return
+	}
 }
 
 func (w *worker) perform(job *task.Job) (res any, err error) {
@@ -168,7 +166,7 @@ func (w *worker) perform(job *task.Job) (res any, err error) {
 		if err != nil {
 			w.handleJobPerformError(t, job, err)
 		} else {
-			w.logger.Debugf("job processed, id=%s, name=%s", job.Id(), job.Name())
+			w.logger.Infof("job processed, id=%s, name=%s", job.Id(), job.Name())
 			_ = w.jobDone(t, job)
 		}
 	}
@@ -215,7 +213,9 @@ func (w *worker) getJob(q queue.Queue, qn string) (*task.Job, error) {
 }
 
 func (w *worker) handleJobPerformError(task task.Task, job *task.Job, _ error) {
+	w.logger.Infof("job fail, id=%s, name=%s", job.Id(), job.Name())
 	if !job.IsReachMacAttempts() {
+		w.logger.Infof("job retry, id=%s, name=%s", job.Id(), job.Name())
 		_ = w.retry(task, job)
 	} else {
 		_ = job.Delete(w.ctx)

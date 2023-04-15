@@ -31,6 +31,7 @@ func TestRedisQueue_Push(t *testing.T) {
 		ID:      "uuid-13",
 		Queue:   queueName,
 		Timeout: 10,
+		Retries: 2,
 	})
 	if err != nil {
 		t.Error(err)

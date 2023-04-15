@@ -67,7 +67,7 @@ func (s *Server) startMigrate(ctx context.Context) error {
 }
 
 func (s *Server) stopServer() {
-	s.logger.Warn("Gracefully down server...")
+	s.logger.Info("Gracefully down server...")
 	s.migrate.stopMigrating()
 	s.worker.stopConsuming()
 }
