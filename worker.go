@@ -188,7 +188,7 @@ func (w *worker) getQueue(t task.Task) queue.Queue {
 
 func (w *worker) getNextJob() (*task.Job, error) {
 	for _, t := range w.sortTasks {
-		if t.Status() == base.Disable || !t.CanRun() {
+		if t.Status() == task.Disable || !t.CanRun() {
 			continue
 		}
 		q := w.getQueue(t)

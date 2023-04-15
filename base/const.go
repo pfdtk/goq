@@ -24,13 +24,6 @@ const (
 	P20
 )
 
-type TaskStatus uint32
-
-const (
-	Active  TaskStatus = 1
-	Disable TaskStatus = 2
-)
-
 type QueueType string
 
 const (

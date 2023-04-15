@@ -7,7 +7,7 @@ type Option struct {
 	OnConnect string
 	QueueType base.QueueType
 	OnQueue   string
-	Status    base.TaskStatus
+	Status    TaskStatus
 	Backoff   uint
 	Priority  int
 	Retries   uint

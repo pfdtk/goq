@@ -39,9 +39,9 @@ func (b *BaseTask) OnQueue() string {
 	return b.Option.OnQueue
 }
 
-func (b *BaseTask) Status() base.TaskStatus {
+func (b *BaseTask) Status() TaskStatus {
 	if b.Option.Status == 0 {
-		return base.Active
+		return Active
 	}
 	return b.Option.Status
 }
