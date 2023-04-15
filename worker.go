@@ -114,13 +114,13 @@ func (w *worker) startWork() {
 					return
 				}
 				w.logger.Infof("job processing, id=%s, name=%s", j.Id(), j.Name())
-				go w.runTask(j)
+				go w.runJob(j)
 			}
 		}
 	}()
 }
 
-func (w *worker) runTask(job *task.Job) {
+func (w *worker) runJob(job *task.Job) {
 	ctx, cancel := context.WithDeadline(w.ctx, job.TimeoutAt())
 	defer func() {
 		<-w.maxWorker
