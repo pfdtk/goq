@@ -141,7 +141,7 @@ func (r *Queue) Release(ctx context.Context, queue string, message *queue.Messag
 }
 
 func (r *Queue) Delete(ctx context.Context, qn string, message *queue.Message) error {
-	qn = r.GetDelayedKey(qn)
+	qn = r.GetReservedKey(qn)
 	_, err := r.client.ZRem(ctx, qn, message.Reserved).Result()
 	return err
 }

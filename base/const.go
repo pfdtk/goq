@@ -26,7 +26,7 @@ const (
 
 const (
 	Active  uint32 = 1
-	Disable uint32 = 0
+	Disable uint32 = 2
 )
 
 type QueueType string

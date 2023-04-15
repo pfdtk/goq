@@ -2,9 +2,11 @@ package goq
 
 import (
 	"context"
+	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/pfdtk/goq/handler"
 	"github.com/pfdtk/goq/logger"
 	"github.com/pfdtk/goq/task"
+	"github.com/redis/go-redis/v9"
 	"golang.org/x/sys/unix"
 	"os"
 	"os/signal"
@@ -75,6 +77,14 @@ func (s *Server) RegisterTask(task task.Task) {
 }
 
 func (s *Server) AddConnect(name string, conn any) {
+	s.conn.Store(name, conn)
+}
+
+func (s *Server) AddRedisConnect(name string, conn *redis.Client) {
+	s.conn.Store(name, conn)
+}
+
+func (s *Server) AddSqsConnect(name string, conn *sqs.Client) {
 	s.conn.Store(name, conn)
 }
 

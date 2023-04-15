@@ -4,23 +4,46 @@ import (
 	"github.com/pfdtk/goq/base"
 )
 
+var (
+	defaultConnect   = "default"
+	defaultQueueType = base.Redis
+	defaultQueue     = "default"
+)
+
 type BaseTask struct {
+	Option *Option
 }
 
-func (b *BaseTask) GetJob() *Job {
-	return nil
+func (b *BaseTask) GetName() string {
+	return b.Option.Name
+}
+
+func (b *BaseTask) OnConnect() string {
+	if b.Option.OnConnect == "" {
+		return defaultConnect
+	}
+	return b.Option.OnConnect
 }
 
 func (b *BaseTask) QueueType() base.QueueType {
-	return base.Redis
+	if b.Option.QueueType == "" {
+		return defaultQueueType
+	}
+	return b.Option.QueueType
 }
 
 func (b *BaseTask) OnQueue() string {
-	return "default"
+	if b.Option.OnQueue == "" {
+		return defaultQueue
+	}
+	return b.Option.OnQueue
 }
 
-func (b *BaseTask) GetStatus() uint32 {
-	return base.Active
+func (b *BaseTask) Status() uint32 {
+	if b.Option.Status == 0 {
+		return base.Active
+	}
+	return b.Option.Status
 }
 
 func (b *BaseTask) CanRun() bool {
@@ -28,13 +51,13 @@ func (b *BaseTask) CanRun() bool {
 }
 
 func (b *BaseTask) Backoff() uint {
-	return 0
+	return b.Option.Backoff
 }
 
 func (b *BaseTask) Priority() int {
-	return base.P0
+	return b.Option.Priority
 }
 
 func (b *BaseTask) Retries() uint {
-	return 0
+	return b.Option.Retries
 }

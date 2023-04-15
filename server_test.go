@@ -2,6 +2,7 @@ package goq
 
 import (
 	"context"
+	"github.com/pfdtk/goq/base"
 	"github.com/pfdtk/goq/connect"
 	"github.com/pfdtk/goq/task"
 	"go.uber.org/zap"
@@ -13,24 +14,25 @@ type TestTask struct {
 	task.BaseTask
 }
 
-func (t *TestTask) Run(_ context.Context, j *task.Job) (any, error) {
-	log := zap.S()
-	time.Sleep(10 * time.Second)
-	log.Info("touch test task")
-	log.Info(j)
+func NewTask() *TestTask {
+	option := &task.Option{
+		Name:      "test",
+		OnConnect: "test",
+		QueueType: base.Redis,
+		OnQueue:   "default",
+		Status:    base.Active,
+		Priority:  0,
+		Retries:   0,
+	}
+	return &TestTask{
+		task.BaseTask{Option: option},
+	}
+}
+
+func (t *TestTask) Run(_ context.Context, _ *task.Job) (any, error) {
+	time.Sleep(2 * time.Second)
+	panic("12313123")
 	return nil, nil
-}
-
-func (t *TestTask) OnConnect() string {
-	return "test"
-}
-
-func (t *TestTask) OnQueue() string {
-	return "default"
-}
-
-func (t *TestTask) GetName() string {
-	return "test"
 }
 
 func TestServer_Start(t *testing.T) {
@@ -52,8 +54,8 @@ func TestServer_Start(t *testing.T) {
 		DB:       1,
 		PoolSize: 1,
 	})
-	server.AddConnect("test", conn)
-	server.RegisterTask(&TestTask{})
+	server.AddRedisConnect("test", conn)
+	server.RegisterTask(NewTask())
 	err = server.Start(context.Background())
 	if err != nil {
 		t.Error(err)

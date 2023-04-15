@@ -30,7 +30,7 @@ func TestRedisQueue_Push(t *testing.T) {
 		Payload: []byte("payload"),
 		ID:      "uuid-13",
 		Queue:   queueName,
-		Timeout: 15,
+		Timeout: 10,
 	})
 	if err != nil {
 		t.Error(err)
@@ -44,8 +44,9 @@ func TestQueue_Later(t *testing.T) {
 		Payload: []byte("payload"),
 		ID:      "uuid-13",
 		Queue:   queueName,
-		Timeout: 15,
-	}, time.Now().Add(1*time.Hour))
+		Timeout: 10,
+		Retries: 2,
+	}, time.Now().Add(10*time.Second))
 	if err != nil {
 		t.Error(err)
 	}
@@ -92,7 +93,7 @@ func TestQueue_Release(t *testing.T) {
 	}
 
 	at := time.Now().Add(10 * time.Minute)
-	err = q.Release(context.Background(), queueName, s.Reserved, at)
+	err = q.Release(context.Background(), queueName, s, at)
 	if err != nil && !errors.Is(err, redis.Nil) {
 		t.Error(err)
 	} else {

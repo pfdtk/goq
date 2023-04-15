@@ -132,11 +132,13 @@ func (w *worker) runTask(job *task.Job) {
 			res, err := w.perform(job)
 			if err == nil {
 				prh <- res
+			} else {
+				prh <- err
 			}
 		}()
 		select {
 		case <-prh:
-			// todo write response to backend
+			// todo write response to backend, prh may be an error
 			return
 		case <-ctx.Done():
 			w.logger.Debugf("job timeout, id=%s, name=%s", job.Id(), job.Name())
@@ -167,7 +169,7 @@ func (w *worker) perform(job *task.Job) (res any, err error) {
 			w.handleJobPerformError(t, job, err)
 		} else {
 			w.logger.Debugf("job processed, id=%s, name=%s", job.Id(), job.Name())
-			w.handleError(err)
+			_ = w.jobDone(t, job)
 		}
 	}
 	return
@@ -189,7 +191,7 @@ func (w *worker) getQueue(t task.Task) queue.Queue {
 
 func (w *worker) getNextJob() (*task.Job, error) {
 	for _, t := range w.sortTasks {
-		if t.GetStatus() == base.Disable || !t.CanRun() {
+		if t.Status() == base.Disable || !t.CanRun() {
 			continue
 		}
 		q := w.getQueue(t)
@@ -215,6 +217,8 @@ func (w *worker) getJob(q queue.Queue, qn string) (*task.Job, error) {
 func (w *worker) handleJobPerformError(task task.Task, job *task.Job, _ error) {
 	if !job.IsReachMacAttempts() {
 		_ = w.retry(task, job)
+	} else {
+		_ = job.Delete(w.ctx)
 	}
 	if len(w.taskErrorHandle) != 0 {
 		for _, h := range w.taskErrorHandle {
@@ -230,6 +234,11 @@ func (w *worker) handleError(err error) {
 	for _, h := range w.errorHandle {
 		h.Handle(w.ctx, err)
 	}
+}
+
+func (w *worker) jobDone(_ task.Task, job *task.Job) (err error) {
+	err = job.Delete(w.ctx)
+	return
 }
 
 func (w *worker) retry(task task.Task, job *task.Job) (err error) {
