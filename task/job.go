@@ -42,11 +42,6 @@ func NewJob(q queue.Queue, msg *queue.Message) *Job {
 	}
 }
 
-func (j *Job) Release(ctx context.Context, backoff uint) (err error) {
-	at := time.Now().Add(time.Duration(backoff) * time.Second)
-	return j.queue.Release(ctx, j.QueueName(), j.RawMessage().Reserved, at)
-}
-
 func (j *Job) Id() string {
 	return j.id
 }
@@ -88,4 +83,14 @@ func (j *Job) TimeoutAt() time.Time {
 
 func (j *Job) IsReachMacAttempts() bool {
 	return j.attempts >= j.retries
+}
+
+func (j *Job) Release(ctx context.Context, backoff uint) (err error) {
+	at := time.Now().Add(time.Duration(backoff) * time.Second)
+	return j.queue.Release(ctx, j.QueueName(), j.RawMessage(), at)
+}
+
+// Delete the job from the queue
+func (j *Job) Delete(ctx context.Context) error {
+	return j.queue.Delete(ctx, j.QueueName(), j.RawMessage())
 }

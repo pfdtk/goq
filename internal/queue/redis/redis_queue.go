@@ -133,14 +133,17 @@ func (r *Queue) Pop(ctx context.Context, q string) (*queue.Message, error) {
 	return &msg, nil
 }
 
-func (r *Queue) Release(ctx context.Context, queue string, message string, at time.Time) error {
+func (r *Queue) Release(ctx context.Context, queue string, message *queue.Message, at time.Time) error {
 	keys := []string{r.GetDelayedKey(queue), r.GetReservedKey(queue)}
-	argv := []any{message, at.Unix()}
+	argv := []any{message.Reserved, at.Unix()}
 	_, err := releaseScript.Run(ctx, r.client, keys, argv...).Result()
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
+}
+
+func (r *Queue) Delete(ctx context.Context, qn string, message *queue.Message) error {
+	qn = r.GetDelayedKey(qn)
+	_, err := r.client.ZRem(ctx, qn, message.Reserved).Result()
+	return err
 }
 
 func (r *Queue) Migrate(ctx context.Context, from string, to string) error {
