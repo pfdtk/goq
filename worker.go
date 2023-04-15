@@ -52,8 +52,8 @@ func newWorker(ctx context.Context, s *Server) *worker {
 
 func (w *worker) startConsuming() error {
 	w.sortTasks = utils.SortTask(w.tasks)
-	w.pop()
-	w.work()
+	w.startPop()
+	w.startWork()
 	return nil
 }
 
@@ -67,7 +67,7 @@ func (w *worker) stopConsuming() {
 	w.logger.Info("worker stopped")
 }
 
-func (w *worker) pop() {
+func (w *worker) startPop() {
 	w.wg.Add(1)
 	go func() {
 		defer w.wg.Done()
@@ -77,13 +77,13 @@ func (w *worker) pop() {
 				w.logger.Debug("received stop sign")
 				return
 			case w.maxWorker <- struct{}{}:
-				go w.readyToWork()
+				go w.pop()
 			}
 		}
 	}()
 }
 
-func (w *worker) readyToWork() {
+func (w *worker) pop() {
 	j, err := w.getNextJob()
 	switch {
 	case errors.Is(err, EmptyJobError):
@@ -100,7 +100,7 @@ func (w *worker) readyToWork() {
 	w.jobChannel <- j
 }
 
-func (w *worker) work() {
+func (w *worker) startWork() {
 	w.wg.Add(1)
 	go func() {
 		defer w.wg.Done()
