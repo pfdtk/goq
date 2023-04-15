@@ -1,16 +1,16 @@
 package utils
 
 import (
-	"github.com/pfdtk/goq/common/cst"
-	"github.com/pfdtk/goq/iface"
+	"github.com/pfdtk/goq/base"
+	"github.com/pfdtk/goq/task"
 	"sort"
 	"sync"
 )
 
-func SortTask(tasks *sync.Map) []iface.Task {
-	var pairs []iface.Task
+func SortTask(tasks *sync.Map) []task.Task {
+	var pairs []task.Task
 	tasks.Range(func(key, value any) bool {
-		pairs = append(pairs, value.(iface.Task))
+		pairs = append(pairs, value.(task.Task))
 		return true
 	})
 	sort.Slice(pairs, func(i, j int) bool {
@@ -19,11 +19,11 @@ func SortTask(tasks *sync.Map) []iface.Task {
 	return pairs
 }
 
-func GetRedisTask(tasks *sync.Map) []iface.Task {
-	var pairs []iface.Task
+func GetRedisTask(tasks *sync.Map) []task.Task {
+	var pairs []task.Task
 	tasks.Range(func(key, value any) bool {
-		v := value.(iface.Task)
-		if v.QueueType() != cst.Redis {
+		v := value.(task.Task)
+		if v.QueueType() != base.Redis {
 			return true
 		}
 		pairs = append(pairs, v)

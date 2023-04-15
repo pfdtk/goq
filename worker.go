@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
-	"github.com/pfdtk/goq/common/cst"
-	"github.com/pfdtk/goq/common/job"
-	"github.com/pfdtk/goq/iface"
+	"github.com/pfdtk/goq/base"
+	"github.com/pfdtk/goq/handler"
 	rdq "github.com/pfdtk/goq/internal/queue/redis"
 	sqsq "github.com/pfdtk/goq/internal/queue/sqs"
 	"github.com/pfdtk/goq/internal/utils"
+	"github.com/pfdtk/goq/logger"
+	"github.com/pfdtk/goq/queue"
+	"github.com/pfdtk/goq/task"
 	"github.com/redis/go-redis/v9"
 	"runtime/debug"
 	"sync"
@@ -24,15 +26,15 @@ var (
 type worker struct {
 	conn            *sync.Map
 	tasks           *sync.Map
-	sortTasks       []iface.Task
+	sortTasks       []task.Task
 	wg              *sync.WaitGroup
 	stopRun         chan struct{}
 	maxWorker       chan struct{}
-	jobChannel      chan *job.Job
+	jobChannel      chan *task.Job
 	ctx             context.Context
-	logger          iface.Logger
-	taskErrorHandle []iface.ErrorJobHandler
-	errorHandle     []iface.ErrorHandler
+	logger          logger.Logger
+	taskErrorHandle []handler.ErrorJobHandler
+	errorHandle     []handler.ErrorHandler
 }
 
 func newWorker(ctx context.Context, s *Server) *worker {
@@ -41,7 +43,7 @@ func newWorker(ctx context.Context, s *Server) *worker {
 		tasks:      &s.tasks,
 		maxWorker:  make(chan struct{}, s.maxWorker),
 		stopRun:    make(chan struct{}),
-		jobChannel: make(chan *job.Job, s.maxWorker),
+		jobChannel: make(chan *task.Job, s.maxWorker),
 		ctx:        ctx,
 		logger:     s.logger,
 		conn:       &s.conn,
@@ -118,7 +120,7 @@ func (w *worker) work() {
 	}()
 }
 
-func (w *worker) runTask(job *job.Job) {
+func (w *worker) runTask(job *task.Job) {
 	go func() {
 		ctx, cancel := context.WithDeadline(w.ctx, job.TimeoutAt())
 		defer func() {
@@ -144,25 +146,25 @@ func (w *worker) runTask(job *job.Job) {
 	}()
 }
 
-func (w *worker) perform(job *job.Job) (res any, err error) {
-	var task iface.Task = nil
+func (w *worker) perform(job *task.Job) (res any, err error) {
+	var t task.Task = nil
 	// recover err from tasks, so that program will not exit
 	defer func() {
 		if x := recover(); x != nil {
 			err = errors.New(string(debug.Stack()))
 			// todo check if task if nil
-			if task != nil {
-				w.handleJobPerformError(task, job, err)
+			if t != nil {
+				w.handleJobPerformError(t, job, err)
 			}
 		}
 	}()
 	name := job.Name()
 	v, ok := w.tasks.Load(name)
 	if ok {
-		task = v.(iface.Task)
-		res, err = task.Run(w.ctx, job)
+		t = v.(task.Task)
+		res, err = t.Run(w.ctx, job)
 		if err != nil {
-			w.handleJobPerformError(task, job, err)
+			w.handleJobPerformError(t, job, err)
 		} else {
 			w.logger.Debugf("job processed, id=%s, name=%s", job.Id(), job.Name())
 			w.handleError(err)
@@ -171,23 +173,23 @@ func (w *worker) perform(job *job.Job) (res any, err error) {
 	return
 }
 
-func (w *worker) getQueue(t iface.Task) iface.Queue {
+func (w *worker) getQueue(t task.Task) queue.Queue {
 	c, ok := w.conn.Load(t.OnConnect())
 	if !ok {
 		return nil
 	}
 	switch t.QueueType() {
-	case cst.Redis:
+	case base.Redis:
 		return rdq.NewRedisQueue(c.(*redis.Client))
-	case cst.Sqs:
+	case base.Sqs:
 		return sqsq.NewSqsQueue(c.(*sqs.Client))
 	}
 	return nil
 }
 
-func (w *worker) getNextJob() (*job.Job, error) {
+func (w *worker) getNextJob() (*task.Job, error) {
 	for _, t := range w.sortTasks {
-		if t.GetStatus() == cst.Disable || !t.CanRun() {
+		if t.GetStatus() == base.Disable || !t.CanRun() {
 			continue
 		}
 		q := w.getQueue(t)
@@ -202,15 +204,15 @@ func (w *worker) getNextJob() (*job.Job, error) {
 	return nil, EmptyJobError
 }
 
-func (w *worker) getJob(q iface.Queue, qn string) (*job.Job, error) {
+func (w *worker) getJob(q queue.Queue, qn string) (*task.Job, error) {
 	msg, err := q.Pop(w.ctx, qn)
 	if err == nil {
-		return job.NewJob(q, msg), nil
+		return task.NewJob(q, msg), nil
 	}
 	return nil, err
 }
 
-func (w *worker) handleJobPerformError(task iface.Task, job *job.Job, _ error) {
+func (w *worker) handleJobPerformError(task task.Task, job *task.Job, _ error) {
 	if !job.IsReachMacAttempts() {
 		_ = w.retry(task, job)
 	}
@@ -230,7 +232,7 @@ func (w *worker) handleError(err error) {
 	}
 }
 
-func (w *worker) retry(task iface.Task, job *job.Job) (err error) {
+func (w *worker) retry(task task.Task, job *task.Job) (err error) {
 	backoff := task.Backoff()
 	return job.Release(w.ctx, backoff)
 }

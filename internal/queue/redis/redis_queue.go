@@ -3,7 +3,7 @@ package redis
 import (
 	"context"
 	"encoding/json"
-	"github.com/pfdtk/goq/common/message"
+	"github.com/pfdtk/goq/queue"
 	"github.com/redis/go-redis/v9"
 	"github.com/spf13/cast"
 	"time"
@@ -85,7 +85,7 @@ func (r *Queue) Size(ctx context.Context, queue string) (int64, error) {
 	return size, err
 }
 
-func (r *Queue) Push(ctx context.Context, message *message.Message) error {
+func (r *Queue) Push(ctx context.Context, message *queue.Message) error {
 	bytes, err := json.Marshal(message)
 	if err != nil {
 		return err
@@ -94,14 +94,14 @@ func (r *Queue) Push(ctx context.Context, message *message.Message) error {
 	return err
 }
 
-func (r *Queue) Later(ctx context.Context, message *message.Message, at time.Time) error {
-	queue := r.GetDelayedKey(message.Queue)
+func (r *Queue) Later(ctx context.Context, message *queue.Message, at time.Time) error {
+	q := r.GetDelayedKey(message.Queue)
 	bytes, err := json.Marshal(message)
 	if err != nil {
 		return err
 	}
 	score := at.Unix()
-	_, err = r.client.ZAdd(ctx, queue, redis.Z{
+	_, err = r.client.ZAdd(ctx, q, redis.Z{
 		Score:  float64(score),
 		Member: bytes,
 	}).Result()
@@ -109,8 +109,8 @@ func (r *Queue) Later(ctx context.Context, message *message.Message, at time.Tim
 	return err
 }
 
-func (r *Queue) Pop(ctx context.Context, queue string) (*message.Message, error) {
-	keys := []string{queue, r.GetReservedKey(queue)}
+func (r *Queue) Pop(ctx context.Context, q string) (*queue.Message, error) {
+	keys := []string{q, r.GetReservedKey(q)}
 	argv := []any{time.Now().Unix()}
 	val, err := popScript.Run(ctx, r.client, keys, argv...).Result()
 	if err != nil {
@@ -123,7 +123,7 @@ func (r *Queue) Pop(ctx context.Context, queue string) (*message.Message, error)
 	if res[0] == "" {
 		return nil, redis.Nil
 	}
-	msg := message.Message{}
+	msg := queue.Message{}
 	err = json.Unmarshal([]byte(res[0]), &msg)
 	if err != nil {
 		return nil, err

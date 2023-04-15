@@ -2,9 +2,10 @@ package goq
 
 import (
 	"context"
-	"github.com/pfdtk/goq/iface"
 	rdq "github.com/pfdtk/goq/internal/queue/redis"
 	"github.com/pfdtk/goq/internal/utils"
+	"github.com/pfdtk/goq/logger"
+	"github.com/pfdtk/goq/task"
 	"github.com/redis/go-redis/v9"
 	"sync"
 	"time"
@@ -25,7 +26,7 @@ type migrate struct {
 	wg       *sync.WaitGroup
 	stopRun  chan struct{}
 	ctx      context.Context
-	logger   iface.Logger
+	logger   logger.Logger
 	interval time.Duration
 }
 
@@ -57,7 +58,7 @@ func (m *migrate) stopMigrating() {
 	close(m.stopRun)
 }
 
-func (m *migrate) migrateRedisTasks(t iface.Task, cat MigrateType) {
+func (m *migrate) migrateRedisTasks(t task.Task, cat MigrateType) {
 	m.wg.Add(1)
 	go func() {
 		defer m.wg.Done()
@@ -77,7 +78,7 @@ func (m *migrate) migrateRedisTasks(t iface.Task, cat MigrateType) {
 	}()
 }
 
-func (m *migrate) performMigrateTasks(t iface.Task, cat MigrateType) {
+func (m *migrate) performMigrateTasks(t task.Task, cat MigrateType) {
 	c, ok := m.conn.Load(t.OnConnect())
 	if !ok {
 		m.logger.Errorf("unable to find connect, name=%s", t.OnConnect())

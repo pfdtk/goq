@@ -2,7 +2,9 @@ package goq
 
 import (
 	"context"
-	"github.com/pfdtk/goq/iface"
+	"github.com/pfdtk/goq/handler"
+	"github.com/pfdtk/goq/logger"
+	"github.com/pfdtk/goq/task"
 	"golang.org/x/sys/unix"
 	"os"
 	"os/signal"
@@ -16,10 +18,10 @@ type Server struct {
 	maxWorker int
 	worker    *worker
 	wg        sync.WaitGroup
-	logger    iface.Logger
+	logger    logger.Logger
 	migrate   *migrate
 	// todo handle
-	taskErrorHandle []iface.ErrorJobHandler
+	taskErrorHandle []handler.ErrorJobHandler
 }
 
 func NewServer(config *ServerConfig) *Server {
@@ -68,7 +70,7 @@ func (s *Server) stopServer() {
 	s.worker.stopConsuming()
 }
 
-func (s *Server) RegisterTask(task iface.Task) {
+func (s *Server) RegisterTask(task task.Task) {
 	s.tasks.Store(task.GetName(), task)
 }
 

@@ -1,4 +1,4 @@
-package iface
+package logger
 
 type Logger interface {
 	Debug(args ...interface{})

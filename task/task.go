@@ -1,17 +1,16 @@
-package iface
+package task
 
 import (
 	"context"
-	"github.com/pfdtk/goq/common/cst"
-	"github.com/pfdtk/goq/common/job"
+	"github.com/pfdtk/goq/base"
 )
 
 type Task interface {
-	Run(context.Context, *job.Job) (any, error)
+	Run(context.Context, *Job) (any, error)
 	// QueueType which queue type, e.g.: RedisQueue
-	QueueType() cst.Type
+	QueueType() base.QueueType
 	// GetJob return current running job
-	GetJob() *job.Job
+	GetJob() *Job
 	// OnConnect queue on which connect
 	OnConnect() string
 	// OnQueue these are some queue on one connect, specify which one to consuming

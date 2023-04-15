@@ -1,4 +1,4 @@
-package message
+package queue
 
 type Message struct {
 	// witch task

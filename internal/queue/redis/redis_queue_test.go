@@ -3,8 +3,8 @@ package redis
 import (
 	"context"
 	"errors"
-	"github.com/pfdtk/goq/common/message"
-	"github.com/pfdtk/goq/internal/connect"
+	"github.com/pfdtk/goq/connect"
+	"github.com/pfdtk/goq/queue"
 	"github.com/redis/go-redis/v9"
 	"testing"
 	"time"
@@ -25,7 +25,7 @@ func getQueue() *Queue {
 
 func TestRedisQueue_Push(t *testing.T) {
 	q := getQueue()
-	err := q.Push(context.Background(), &message.Message{
+	err := q.Push(context.Background(), &queue.Message{
 		Type:    "test",
 		Payload: []byte("payload"),
 		ID:      "uuid-13",
@@ -39,7 +39,7 @@ func TestRedisQueue_Push(t *testing.T) {
 
 func TestQueue_Later(t *testing.T) {
 	q := getQueue()
-	err := q.Later(context.Background(), &message.Message{
+	err := q.Later(context.Background(), &queue.Message{
 		Type:    "test",
 		Payload: []byte("payload"),
 		ID:      "uuid-13",
@@ -73,7 +73,7 @@ func TestQueue_Pop(t *testing.T) {
 func TestQueue_Release(t *testing.T) {
 	q := getQueue()
 
-	err := q.Push(context.Background(), &message.Message{
+	err := q.Push(context.Background(), &queue.Message{
 		Type:    "test",
 		Payload: []byte("payload"),
 		ID:      "uuid-13",

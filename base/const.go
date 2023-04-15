@@ -1,4 +1,4 @@
-package cst
+package base
 
 const (
 	P0 int = iota
@@ -27,4 +27,11 @@ const (
 const (
 	Active  uint32 = 1
 	Disable uint32 = 0
+)
+
+type QueueType string
+
+const (
+	Redis QueueType = "redis"
+	Sqs   QueueType = "sqs"
 )

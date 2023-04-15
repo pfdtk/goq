@@ -1,9 +1,8 @@
-package job
+package task
 
 import (
 	"context"
-	"github.com/pfdtk/goq/common/message"
-	"github.com/pfdtk/goq/iface"
+	"github.com/pfdtk/goq/queue"
 	"time"
 )
 
@@ -25,11 +24,11 @@ type Job struct {
 	// how many times job has been tried
 	attempts uint
 	// rawMessage raw message
-	rawMessage *message.Message
-	queue      iface.Queue
+	rawMessage *queue.Message
+	queue      queue.Queue
 }
 
-func NewJob(q iface.Queue, msg *message.Message) *Job {
+func NewJob(q queue.Queue, msg *queue.Message) *Job {
 	return &Job{
 		id:         msg.ID,
 		name:       msg.Type,
@@ -72,11 +71,11 @@ func (j *Job) Attempts() uint {
 	return j.attempts
 }
 
-func (j *Job) RawMessage() *message.Message {
+func (j *Job) RawMessage() *queue.Message {
 	return j.rawMessage
 }
 
-func (j *Job) Queue() iface.Queue {
+func (j *Job) Queue() queue.Queue {
 	return j.queue
 }
 
