@@ -13,6 +13,7 @@ const (
 )
 
 type Task interface {
+	// Run a job
 	Run(context.Context, *Job) (any, error)
 	// QueueType which queue type, e.g.: RedisQueue
 	QueueType() queue.Type
