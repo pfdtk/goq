@@ -2,11 +2,11 @@ package goq
 
 import (
 	"context"
+	"github.com/pfdtk/goq/connect"
 	rdq "github.com/pfdtk/goq/internal/queue/redis"
 	"github.com/pfdtk/goq/internal/utils"
 	"github.com/pfdtk/goq/logger"
 	"github.com/pfdtk/goq/task"
-	"github.com/redis/go-redis/v9"
 	"sync"
 	"time"
 )
@@ -21,7 +21,6 @@ const (
 var undefined = ""
 
 type migrate struct {
-	conn     *sync.Map
 	tasks    *sync.Map
 	wg       *sync.WaitGroup
 	stopRun  chan struct{}
@@ -36,7 +35,6 @@ func newMigrate(ctx context.Context, s *Server) *migrate {
 		tasks:    &s.tasks,
 		ctx:      ctx,
 		logger:   s.logger,
-		conn:     &s.conn,
 		interval: 5 * time.Second,
 		stopRun:  make(chan struct{}),
 	}
@@ -79,12 +77,12 @@ func (m *migrate) migrateRedisTasks(t task.Task, cat MigrateType) {
 }
 
 func (m *migrate) performMigrateTasks(t task.Task, cat MigrateType) {
-	c, ok := m.conn.Load(t.OnConnect())
-	if !ok {
+	c := connect.GetRedis(t.OnConnect())
+	if c == nil {
 		m.logger.Errorf("connect not found, name=%s", t.OnConnect())
 		return
 	}
-	q := rdq.NewRedisQueue(c.(*redis.Client))
+	q := rdq.NewRedisQueue(c)
 	from := m.getMigrateQueueKey(q, t.OnQueue(), cat)
 	if from == undefined {
 		return

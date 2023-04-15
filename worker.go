@@ -5,6 +5,7 @@ import (
 	"errors"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/pfdtk/goq/base"
+	"github.com/pfdtk/goq/connect"
 	"github.com/pfdtk/goq/handler"
 	rdq "github.com/pfdtk/goq/internal/queue/redis"
 	sqsq "github.com/pfdtk/goq/internal/queue/sqs"
@@ -24,7 +25,6 @@ var (
 )
 
 type worker struct {
-	conn            *sync.Map
 	tasks           *sync.Map
 	sortTasks       []task.Task
 	wg              *sync.WaitGroup
@@ -46,7 +46,6 @@ func newWorker(ctx context.Context, s *Server) *worker {
 		jobChannel: make(chan *task.Job, s.maxWorker),
 		ctx:        ctx,
 		logger:     s.logger,
-		conn:       &s.conn,
 	}
 }
 
@@ -174,8 +173,8 @@ func (w *worker) perform(job *task.Job) (res any, err error) {
 }
 
 func (w *worker) getQueue(t task.Task) queue.Queue {
-	c, ok := w.conn.Load(t.OnConnect())
-	if !ok {
+	c := connect.Get(t.OnConnect())
+	if c == nil {
 		return nil
 	}
 	switch t.QueueType() {
