@@ -16,7 +16,7 @@ type Task interface {
 	// GetName task name
 	GetName() string
 	// Status 0 is disabled, 1 is active
-	Status() uint32
+	Status() base.TaskStatus
 	// CanRun check if task can run, e.g.: rate limit
 	CanRun() bool
 	// Backoff retry delay when exception throw

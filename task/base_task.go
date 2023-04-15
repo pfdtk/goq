@@ -39,7 +39,7 @@ func (b *BaseTask) OnQueue() string {
 	return b.Option.OnQueue
 }
 
-func (b *BaseTask) Status() uint32 {
+func (b *BaseTask) Status() base.TaskStatus {
 	if b.Option.Status == 0 {
 		return base.Active
 	}
