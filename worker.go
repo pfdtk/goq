@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
-	"github.com/pfdtk/goq/base"
 	"github.com/pfdtk/goq/connect"
 	"github.com/pfdtk/goq/handler"
 	rdq "github.com/pfdtk/goq/internal/queue/redis"
@@ -178,9 +177,9 @@ func (w *worker) getQueue(t task.Task) queue.Queue {
 		return nil
 	}
 	switch t.QueueType() {
-	case base.Redis:
+	case queue.Redis:
 		return rdq.NewRedisQueue(c.(*redis.Client))
-	case base.Sqs:
+	case queue.Sqs:
 		return sqsq.NewSqsQueue(c.(*sqs.Client))
 	}
 	return nil

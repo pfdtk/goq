@@ -2,8 +2,8 @@ package goq
 
 import (
 	"context"
-	"github.com/pfdtk/goq/base"
 	"github.com/pfdtk/goq/connect"
+	"github.com/pfdtk/goq/queue"
 	"github.com/pfdtk/goq/task"
 	"go.uber.org/zap"
 	"testing"
@@ -18,7 +18,7 @@ func NewTask() *TestTask {
 	option := &task.Option{
 		Name:      "test",
 		OnConnect: "test",
-		QueueType: base.Redis,
+		QueueType: queue.Redis,
 		OnQueue:   "default",
 		Status:    task.Active,
 		Priority:  0,

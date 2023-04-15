@@ -2,20 +2,20 @@ package task
 
 import (
 	"context"
-	"github.com/pfdtk/goq/base"
+	"github.com/pfdtk/goq/queue"
 )
 
-type TaskStatus uint32
+type Status uint32
 
 const (
-	Active  TaskStatus = 1
-	Disable TaskStatus = 2
+	Active  Status = 1
+	Disable Status = 2
 )
 
 type Task interface {
 	Run(context.Context, *Job) (any, error)
 	// QueueType which queue type, e.g.: RedisQueue
-	QueueType() base.QueueType
+	QueueType() queue.Type
 	// OnConnect queue on which connect
 	OnConnect() string
 	// OnQueue these are some queue on one connect, specify which one to consuming
@@ -23,7 +23,7 @@ type Task interface {
 	// GetName task name
 	GetName() string
 	// Status 0 is disabled, 1 is active
-	Status() TaskStatus
+	Status() Status
 	// CanRun check if task can run, e.g.: rate limit
 	CanRun() bool
 	// Backoff retry delay when exception throw

@@ -1,7 +1,7 @@
 package utils
 
 import (
-	"github.com/pfdtk/goq/base"
+	"github.com/pfdtk/goq/queue"
 	"github.com/pfdtk/goq/task"
 	"sort"
 	"sync"
@@ -23,7 +23,7 @@ func GetRedisTask(tasks *sync.Map) []task.Task {
 	var pairs []task.Task
 	tasks.Range(func(key, value any) bool {
 		v := value.(task.Task)
-		if v.QueueType() != base.Redis {
+		if v.QueueType() != queue.Redis {
 			return true
 		}
 		pairs = append(pairs, v)

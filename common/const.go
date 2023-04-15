@@ -1,4 +1,4 @@
-package base
+package common
 
 const (
 	P0 int = iota
@@ -22,11 +22,4 @@ const (
 	P18
 	P19
 	P20
-)
-
-type QueueType string
-
-const (
-	Redis QueueType = "redis"
-	Sqs   QueueType = "sqs"
 )

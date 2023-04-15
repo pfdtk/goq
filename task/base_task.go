@@ -1,12 +1,12 @@
 package task
 
 import (
-	"github.com/pfdtk/goq/base"
+	"github.com/pfdtk/goq/queue"
 )
 
 var (
 	defaultConnect   = "default"
-	defaultQueueType = base.Redis
+	defaultQueueType = queue.Redis
 	defaultQueue     = "default"
 )
 
@@ -25,7 +25,7 @@ func (b *BaseTask) OnConnect() string {
 	return b.Option.OnConnect
 }
 
-func (b *BaseTask) QueueType() base.QueueType {
+func (b *BaseTask) QueueType() queue.Type {
 	if b.Option.QueueType == "" {
 		return defaultQueueType
 	}
@@ -39,7 +39,7 @@ func (b *BaseTask) OnQueue() string {
 	return b.Option.OnQueue
 }
 
-func (b *BaseTask) Status() TaskStatus {
+func (b *BaseTask) Status() Status {
 	if b.Option.Status == 0 {
 		return Active
 	}

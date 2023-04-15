@@ -1,13 +1,15 @@
 package task
 
-import "github.com/pfdtk/goq/base"
+import (
+	"github.com/pfdtk/goq/queue"
+)
 
 type Option struct {
 	Name      string
 	OnConnect string
-	QueueType base.QueueType
+	QueueType queue.Type
 	OnQueue   string
-	Status    TaskStatus
+	Status    Status
 	Backoff   uint
 	Priority  int
 	Retries   uint
