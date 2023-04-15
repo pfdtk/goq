@@ -67,7 +67,7 @@ func (m *migrate) migrateRedisTasks(t task.Task, cat MigrateType) {
 		for {
 			select {
 			case <-m.stopRun:
-				m.logger.Info("stopping migrate redis tasks which is not ack, name=%s", t.GetName())
+				m.logger.Info("stopping migrate task, name=%s", t.GetName())
 				timer.Stop()
 				return
 			case <-timer.C:
@@ -81,7 +81,7 @@ func (m *migrate) migrateRedisTasks(t task.Task, cat MigrateType) {
 func (m *migrate) performMigrateTasks(t task.Task, cat MigrateType) {
 	c, ok := m.conn.Load(t.OnConnect())
 	if !ok {
-		m.logger.Errorf("unable to find connect, name=%s", t.OnConnect())
+		m.logger.Errorf("connect not found, name=%s", t.OnConnect())
 		return
 	}
 	q := rdq.NewRedisQueue(c.(*redis.Client))
