@@ -5,7 +5,7 @@ import (
 	"errors"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/pfdtk/goq/connect"
-	"github.com/pfdtk/goq/handler"
+	evt "github.com/pfdtk/goq/event"
 	"github.com/pfdtk/goq/internal/event"
 	rdq "github.com/pfdtk/goq/internal/queue/redis"
 	sqsq "github.com/pfdtk/goq/internal/queue/sqs"
@@ -25,21 +25,19 @@ var (
 )
 
 type worker struct {
-	tasks           *sync.Map
-	sortTasks       []task.Task
-	wg              *sync.WaitGroup
-	stopRun         chan struct{}
-	maxWorker       chan struct{}
-	jobChannel      chan *task.Job
-	ctx             context.Context
-	logger          logger.Logger
-	eventManager    *event.Manager
-	taskErrorHandle []handler.ErrorJobHandler
-	errorHandle     []handler.ErrorHandler
+	tasks        *sync.Map
+	sortTasks    []task.Task
+	wg           *sync.WaitGroup
+	stopRun      chan struct{}
+	maxWorker    chan struct{}
+	jobChannel   chan *task.Job
+	ctx          context.Context
+	logger       logger.Logger
+	eventManager *event.Manager
 }
 
 func newWorker(ctx context.Context, s *Server) *worker {
-	return &worker{
+	w := &worker{
 		wg:           &s.wg,
 		tasks:        &s.tasks,
 		maxWorker:    make(chan struct{}, s.maxWorker),
@@ -49,6 +47,12 @@ func newWorker(ctx context.Context, s *Server) *worker {
 		logger:       s.logger,
 		eventManager: s.eventManager,
 	}
+	w.registerEvents()
+	return w
+}
+
+func (w *worker) registerEvents() {
+	w.eventManager.Listen(&evt.WorkErrorEvent{}, evt.NewWorkerErrorHandler())
 }
 
 func (w *worker) startConsuming() error {
@@ -153,7 +157,6 @@ func (w *worker) perform(job *task.Job) (res any, err error) {
 	defer func() {
 		if x := recover(); x != nil {
 			err = errors.New(string(debug.Stack()))
-			// todo check if task if nil
 			if t != nil {
 				w.handleJobPerformError(t, job, err)
 			}
@@ -163,12 +166,13 @@ func (w *worker) perform(job *task.Job) (res any, err error) {
 	v, ok := w.tasks.Load(name)
 	if ok {
 		t = v.(task.Task)
+		w.eventManager.Listen(&evt.JobErrorEvent{}, evt.NewJobErrorHandler())
 		res, err = t.Run(w.ctx, job)
 		if err != nil {
 			w.handleJobPerformError(t, job, err)
 		} else {
 			w.logger.Infof("job processed, id=%s, name=%s", job.Id(), job.Name())
-			_ = w.jobDone(t, job)
+			_ = w.handleJobDone(t, job)
 		}
 	}
 	return
@@ -213,6 +217,10 @@ func (w *worker) getJob(q queue.Queue, qn string) (*task.Job, error) {
 	return nil, err
 }
 
+func (w *worker) handleJobDone(_ task.Task, job *task.Job) (err error) {
+	return job.Delete(w.ctx)
+}
+
 func (w *worker) handleJobPerformError(task task.Task, job *task.Job, _ error) {
 	w.logger.Infof("job fail, id=%s, name=%s", job.Id(), job.Name())
 	if !job.IsReachMacAttempts() {
@@ -221,25 +229,11 @@ func (w *worker) handleJobPerformError(task task.Task, job *task.Job, _ error) {
 	} else {
 		_ = job.Delete(w.ctx)
 	}
-	if len(w.taskErrorHandle) != 0 {
-		for _, h := range w.taskErrorHandle {
-			h.Handle(w.ctx, task)
-		}
-	}
+	w.eventManager.Dispatch(evt.NewJobErrorEvent(task, job))
 }
 
 func (w *worker) handleError(err error) {
-	if len(w.errorHandle) == 0 {
-		return
-	}
-	for _, h := range w.errorHandle {
-		h.Handle(w.ctx, err)
-	}
-}
-
-func (w *worker) jobDone(_ task.Task, job *task.Job) (err error) {
-	err = job.Delete(w.ctx)
-	return
+	w.eventManager.Dispatch(evt.NewWorkErrorEvent(err))
 }
 
 func (w *worker) retry(task task.Task, job *task.Job) (err error) {
