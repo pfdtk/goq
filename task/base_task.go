@@ -75,10 +75,10 @@ func (b *BaseTask) Timeout() int64 {
 }
 
 func (b *BaseTask) Dispatch(ctx context.Context, payload []byte) (err error) {
-	return b.DispatchDelay(ctx, payload, 0)
+	return b.EnQueue(ctx, payload, 0)
 }
 
-func (b *BaseTask) DispatchDelay(ctx context.Context, payload []byte, delay time.Duration) (err error) {
+func (b *BaseTask) EnQueue(ctx context.Context, payload []byte, delay time.Duration) (err error) {
 	q := qm.GetQueue(b.OnConnect(), b.QueueType())
 	if q == nil {
 		return errors.New("fail to get queue")
