@@ -1,8 +1,8 @@
 package goq
 
 import (
-	"context"
 	"github.com/pfdtk/goq/connect"
+	"github.com/pfdtk/goq/task"
 	"go.uber.org/zap"
 	"testing"
 )
@@ -24,7 +24,7 @@ func TestClient(t *testing.T) {
 	})
 	c.AddRedisConnect("test", conn)
 
-	err = NewTask().Dispatch(context.Background(), []byte("test payload"))
+	err = NewTask().Dispatch([]byte("test payload"), task.WithDelay(10))
 	if err != nil {
 		t.Error(err)
 		return

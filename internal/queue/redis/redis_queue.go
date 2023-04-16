@@ -94,7 +94,11 @@ func (r *Queue) Push(ctx context.Context, message *queue.Message) error {
 	return err
 }
 
-func (r *Queue) Later(ctx context.Context, message *queue.Message, at time.Time) error {
+func (r *Queue) Later(
+	ctx context.Context,
+	message *queue.Message,
+	at time.Time) error {
+
 	q := r.GetDelayedKey(message.Queue)
 	bytes, err := json.Marshal(message)
 	if err != nil {
@@ -133,7 +137,12 @@ func (r *Queue) Pop(ctx context.Context, q string) (*queue.Message, error) {
 	return &msg, nil
 }
 
-func (r *Queue) Release(ctx context.Context, queue string, message *queue.Message, at time.Time) error {
+func (r *Queue) Release(
+	ctx context.Context,
+	queue string,
+	message *queue.Message,
+	at time.Time) error {
+
 	keys := []string{r.GetDelayedKey(queue), r.GetReservedKey(queue)}
 	argv := []any{message.Reserved, at.Unix()}
 	_, err := releaseScript.Run(ctx, r.client, keys, argv...).Result()

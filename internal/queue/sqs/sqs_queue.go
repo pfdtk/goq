@@ -31,7 +31,12 @@ func (s *Queue) Pop(ctx context.Context, queue string) (*queue.Message, error) {
 	return nil, nil
 }
 
-func (s *Queue) Release(ctx context.Context, queue string, message *queue.Message, at time.Time) error {
+func (s *Queue) Release(
+	ctx context.Context,
+	queue string,
+	message *queue.Message,
+	at time.Time) error {
+
 	return nil
 }
 

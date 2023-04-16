@@ -75,11 +75,19 @@ func (b *BaseTask) Timeout() int64 {
 	return b.Option.Timeout
 }
 
-func (b *BaseTask) Dispatch(ctx context.Context, payload []byte) (err error) {
-	return b.EnQueue(ctx, payload, 0)
+func (b *BaseTask) UniqueId() string {
+	return b.Option.UniqueId
 }
 
-func (b *BaseTask) EnQueue(ctx context.Context, payload []byte, delay time.Duration) (err error) {
+func (b *BaseTask) Dispatch(payload []byte, opt ...DispatchOptFunc) (err error) {
+	return b.DispatchContext(context.Background(), payload, opt...)
+}
+
+func (b *BaseTask) DispatchContext(
+	ctx context.Context,
+	payload []byte,
+	optFun ...DispatchOptFunc) (err error) {
+
 	q := qm.GetQueue(b.OnConnect(), b.QueueType())
 	if q == nil {
 		return errors.New("fail to get queue")
@@ -92,10 +100,15 @@ func (b *BaseTask) EnQueue(ctx context.Context, payload []byte, delay time.Durat
 		Timeout: b.Timeout(),
 		Retries: b.Retries(),
 	}
-	if delay == 0 {
+	opt := &DispatchOpt{}
+	for _, fn := range optFun {
+		fn(opt)
+	}
+	if opt.Delay == 0 {
 		err = q.Push(ctx, message)
 	} else {
-		at := time.Now().Add(delay)
+		sec := time.Duration(opt.Delay) * time.Second
+		at := time.Now().Add(sec)
 		err = q.Later(ctx, message, at)
 	}
 	return

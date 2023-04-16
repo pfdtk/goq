@@ -35,4 +35,6 @@ type Task interface {
 	Retries() uint
 	// Timeout of job
 	Timeout() int64
+	// UniqueId use for unique message for a time period
+	UniqueId() string
 }

@@ -11,26 +11,27 @@ type Handler interface {
 }
 
 type Manager struct {
-	event map[Event][]Handler
+	event map[string][]Handler
 	lock  sync.Mutex
 }
 
 func NewManager() *Manager {
 	return &Manager{
-		event: make(map[Event][]Handler),
+		event: make(map[string][]Handler),
 	}
 }
 
 func (m *Manager) Listen(e Event, h Handler) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
-	handles := m.event[e]
+	en := e.Name()
+	handles := m.event[en]
 	handles = append(handles, h)
-	m.event[e] = handles
+	m.event[en] = handles
 }
 
 func (m *Manager) Dispatch(e Event) {
-	handlers := m.event[e]
+	handlers := m.event[e.Name()]
 	for _, h := range handlers {
 		ct, _ := h.Handle(e)
 		if ct == false {
