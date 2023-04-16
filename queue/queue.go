@@ -5,13 +5,6 @@ import (
 	"time"
 )
 
-type Type string
-
-const (
-	Redis Type = "redis"
-	Sqs   Type = "sqs"
-)
-
 type Queue interface {
 	// Size get size of queue
 	Size(ctx context.Context, queue string) (int64, error)
