@@ -3,6 +3,7 @@ package task
 import (
 	"context"
 	"errors"
+	"github.com/google/uuid"
 	qm "github.com/pfdtk/goq/internal/queue"
 	"github.com/pfdtk/goq/queue"
 	"time"
@@ -84,7 +85,7 @@ func (b *BaseTask) EnQueue(ctx context.Context, payload []byte, delay time.Durat
 		return errors.New("fail to get queue")
 	}
 	message := &queue.Message{
-		ID:      "uuid-13", // todo create random uuid
+		ID:      uuid.NewString(),
 		Type:    b.GetName(),
 		Payload: payload,
 		Queue:   b.OnQueue(),
@@ -94,7 +95,8 @@ func (b *BaseTask) EnQueue(ctx context.Context, payload []byte, delay time.Durat
 	if delay == 0 {
 		err = q.Push(ctx, message)
 	} else {
-		err = q.Later(ctx, message, time.Now().Add(delay))
+		at := time.Now().Add(delay)
+		err = q.Later(ctx, message, at)
 	}
 	return
 }

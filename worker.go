@@ -21,34 +21,34 @@ var (
 )
 
 type worker struct {
-	tasks        *sync.Map
-	sortTasks    []task.Task
-	wg           *sync.WaitGroup
-	stopRun      chan struct{}
-	maxWorker    chan struct{}
-	jobChannel   chan *task.Job
-	ctx          context.Context
-	logger       logger.Logger
-	eventManager *event.Manager
+	tasks      *sync.Map
+	sortTasks  []task.Task
+	wg         *sync.WaitGroup
+	stopRun    chan struct{}
+	maxWorker  chan struct{}
+	jobChannel chan *task.Job
+	ctx        context.Context
+	logger     logger.Logger
+	em         *event.Manager
 }
 
 func newWorker(ctx context.Context, s *Server) *worker {
 	w := &worker{
-		wg:           &s.wg,
-		tasks:        &s.tasks,
-		maxWorker:    make(chan struct{}, s.maxWorker),
-		stopRun:      make(chan struct{}),
-		jobChannel:   make(chan *task.Job, s.maxWorker),
-		ctx:          ctx,
-		logger:       s.logger,
-		eventManager: s.eventManager,
+		wg:         &s.wg,
+		tasks:      &s.tasks,
+		maxWorker:  make(chan struct{}, s.maxWorker),
+		stopRun:    make(chan struct{}),
+		jobChannel: make(chan *task.Job, s.maxWorker),
+		ctx:        ctx,
+		logger:     s.logger,
+		em:         s.eventManager,
 	}
 	w.registerEvents()
 	return w
 }
 
 func (w *worker) registerEvents() {
-	w.eventManager.Listen(&evt.WorkErrorEvent{}, evt.NewWorkerErrorHandler())
+	w.em.Listen(&evt.WorkErrorEvent{}, evt.NewWorkerErrorHandler())
 }
 
 func (w *worker) startConsuming() error {
@@ -162,8 +162,9 @@ func (w *worker) perform(job *task.Job) (res any, err error) {
 	v, ok := w.tasks.Load(name)
 	if ok {
 		t = v.(task.Task)
-		w.eventManager.Listen(&evt.JobErrorEvent{}, evt.NewJobErrorHandler())
+		w.em.Dispatch(evt.NewJobBeforeRunEvent(t, job))
 		res, err = t.Run(w.ctx, job)
+		w.em.Dispatch(evt.NewJobAfterRunEvent(t, job))
 		if err != nil {
 			w.handleJobError(t, job, err)
 		} else {
@@ -215,11 +216,11 @@ func (w *worker) handleJobError(task task.Task, job *task.Job, _ error) {
 	} else {
 		_ = job.Delete(w.ctx)
 	}
-	w.eventManager.Dispatch(evt.NewJobErrorEvent(task, job))
+	w.em.Dispatch(evt.NewJobErrorEvent(task, job))
 }
 
 func (w *worker) handleError(err error) {
-	w.eventManager.Dispatch(evt.NewWorkErrorEvent(err))
+	w.em.Dispatch(evt.NewWorkErrorEvent(err))
 }
 
 func (w *worker) retry(task task.Task, job *task.Job) (err error) {
