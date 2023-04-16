@@ -23,6 +23,7 @@ func NewTask() *TestTask {
 		Status:    task.Active,
 		Priority:  0,
 		Retries:   0,
+		Timeout:   11,
 	}
 	return &TestTask{
 		task.BaseTask{Option: option},

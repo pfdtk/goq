@@ -3,17 +3,13 @@ package goq
 import (
 	"context"
 	"errors"
-	"github.com/aws/aws-sdk-go-v2/service/sqs"
-	"github.com/pfdtk/goq/connect"
 	evt "github.com/pfdtk/goq/event"
 	"github.com/pfdtk/goq/internal/event"
-	rdq "github.com/pfdtk/goq/internal/queue/redis"
-	sqsq "github.com/pfdtk/goq/internal/queue/sqs"
+	qm "github.com/pfdtk/goq/internal/queue"
 	"github.com/pfdtk/goq/internal/utils"
 	"github.com/pfdtk/goq/logger"
 	"github.com/pfdtk/goq/queue"
 	"github.com/pfdtk/goq/task"
-	"github.com/redis/go-redis/v9"
 	"runtime/debug"
 	"sync"
 	"time"
@@ -158,7 +154,7 @@ func (w *worker) perform(job *task.Job) (res any, err error) {
 		if x := recover(); x != nil {
 			err = errors.New(string(debug.Stack()))
 			if t != nil {
-				w.handleJobPerformError(t, job, err)
+				w.handleJobError(t, job, err)
 			}
 		}
 	}()
@@ -169,7 +165,7 @@ func (w *worker) perform(job *task.Job) (res any, err error) {
 		w.eventManager.Listen(&evt.JobErrorEvent{}, evt.NewJobErrorHandler())
 		res, err = t.Run(w.ctx, job)
 		if err != nil {
-			w.handleJobPerformError(t, job, err)
+			w.handleJobError(t, job, err)
 		} else {
 			w.logger.Infof("job processed, id=%s, name=%s", job.Id(), job.Name())
 			_ = w.handleJobDone(t, job)
@@ -179,17 +175,7 @@ func (w *worker) perform(job *task.Job) (res any, err error) {
 }
 
 func (w *worker) getQueue(t task.Task) queue.Queue {
-	c := connect.Get(t.OnConnect())
-	if c == nil {
-		return nil
-	}
-	switch t.QueueType() {
-	case queue.Redis:
-		return rdq.NewRedisQueue(c.(*redis.Client))
-	case queue.Sqs:
-		return sqsq.NewSqsQueue(c.(*sqs.Client))
-	}
-	return nil
+	return qm.GetQueue(t.OnConnect(), t.QueueType())
 }
 
 func (w *worker) getNextJob() (*task.Job, error) {
@@ -221,7 +207,7 @@ func (w *worker) handleJobDone(_ task.Task, job *task.Job) (err error) {
 	return job.Delete(w.ctx)
 }
 
-func (w *worker) handleJobPerformError(task task.Task, job *task.Job, _ error) {
+func (w *worker) handleJobError(task task.Task, job *task.Job, _ error) {
 	w.logger.Infof("job fail, id=%s, name=%s", job.Id(), job.Name())
 	if !job.IsReachMacAttempts() {
 		w.logger.Infof("job retry, id=%s, name=%s", job.Id(), job.Name())

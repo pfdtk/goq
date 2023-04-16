@@ -21,4 +21,6 @@ type Option struct {
 	Priority int
 	// Retries times to retry when task fail
 	Retries uint
+	// Timeout job timeout
+	Timeout int64
 }

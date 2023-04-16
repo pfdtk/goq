@@ -33,4 +33,6 @@ type Task interface {
 	Priority() int
 	// Retries how many times to retry process
 	Retries() uint
+	// Timeout of job
+	Timeout() int64
 }
