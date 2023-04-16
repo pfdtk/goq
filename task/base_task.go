@@ -74,34 +74,27 @@ func (b *BaseTask) Timeout() int64 {
 	return b.Option.Timeout
 }
 
-func (b *BaseTask) Dispatch(ctx context.Context, payload []byte) error {
-	q := qm.GetQueue(b.OnConnect(), b.QueueType())
-	if q == nil {
-		return errors.New("fail to get queue")
-	}
-	err := q.Push(ctx, &queue.Message{
-		ID:      "uuid-13", // todo create random uuid
-		Type:    b.GetName(),
-		Payload: payload,
-		Queue:   b.OnQueue(),
-		Timeout: b.Timeout(),
-		Retries: b.Retries(),
-	})
-	return err
+func (b *BaseTask) Dispatch(ctx context.Context, payload []byte) (err error) {
+	return b.DispatchDelay(ctx, payload, 0)
 }
 
-func (b *BaseTask) DispatchDelay(ctx context.Context, payload []byte, delay time.Duration) error {
+func (b *BaseTask) DispatchDelay(ctx context.Context, payload []byte, delay time.Duration) (err error) {
 	q := qm.GetQueue(b.OnConnect(), b.QueueType())
 	if q == nil {
 		return errors.New("fail to get queue")
 	}
-	err := q.Later(ctx, &queue.Message{
+	message := &queue.Message{
 		ID:      "uuid-13", // todo create random uuid
 		Type:    b.GetName(),
 		Payload: payload,
 		Queue:   b.OnQueue(),
 		Timeout: b.Timeout(),
 		Retries: b.Retries(),
-	}, time.Now().Add(delay))
-	return err
+	}
+	if delay == 0 {
+		err = q.Push(ctx, message)
+	} else {
+		err = q.Later(ctx, message, time.Now().Add(delay))
+	}
+	return
 }
