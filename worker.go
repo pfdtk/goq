@@ -6,6 +6,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/pfdtk/goq/connect"
 	"github.com/pfdtk/goq/handler"
+	"github.com/pfdtk/goq/internal/event"
 	rdq "github.com/pfdtk/goq/internal/queue/redis"
 	sqsq "github.com/pfdtk/goq/internal/queue/sqs"
 	"github.com/pfdtk/goq/internal/utils"
@@ -32,19 +33,21 @@ type worker struct {
 	jobChannel      chan *task.Job
 	ctx             context.Context
 	logger          logger.Logger
+	eventManager    *event.Manager
 	taskErrorHandle []handler.ErrorJobHandler
 	errorHandle     []handler.ErrorHandler
 }
 
 func newWorker(ctx context.Context, s *Server) *worker {
 	return &worker{
-		wg:         &s.wg,
-		tasks:      &s.tasks,
-		maxWorker:  make(chan struct{}, s.maxWorker),
-		stopRun:    make(chan struct{}),
-		jobChannel: make(chan *task.Job, s.maxWorker),
-		ctx:        ctx,
-		logger:     s.logger,
+		wg:           &s.wg,
+		tasks:        &s.tasks,
+		maxWorker:    make(chan struct{}, s.maxWorker),
+		stopRun:      make(chan struct{}),
+		jobChannel:   make(chan *task.Job, s.maxWorker),
+		ctx:          ctx,
+		logger:       s.logger,
+		eventManager: s.eventManager,
 	}
 }
 

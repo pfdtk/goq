@@ -4,7 +4,7 @@ import (
 	"context"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/pfdtk/goq/connect"
-	"github.com/pfdtk/goq/handler"
+	"github.com/pfdtk/goq/internal/event"
 	"github.com/pfdtk/goq/logger"
 	"github.com/pfdtk/goq/task"
 	"github.com/redis/go-redis/v9"
@@ -15,20 +15,20 @@ import (
 )
 
 type Server struct {
-	tasks     sync.Map
-	maxWorker int
-	worker    *worker
-	wg        sync.WaitGroup
-	logger    logger.Logger
-	migrate   *migrate
-	// todo handle
-	taskErrorHandle []handler.ErrorJobHandler
+	tasks        sync.Map
+	maxWorker    int
+	worker       *worker
+	wg           sync.WaitGroup
+	logger       logger.Logger
+	migrate      *migrate
+	eventManager *event.Manager
 }
 
 func NewServer(config *ServerConfig) *Server {
 	return &Server{
-		maxWorker: config.MaxWorker,
-		logger:    config.logger,
+		maxWorker:    config.MaxWorker,
+		logger:       config.logger,
+		eventManager: event.NewManager(),
 	}
 }
 
@@ -85,6 +85,10 @@ func (s *Server) AddRedisConnect(name string, conn *redis.Client) {
 
 func (s *Server) AddSqsConnect(name string, conn *sqs.Client) {
 	connect.AddSqsConnect(name, conn)
+}
+
+func (s *Server) Listen(e event.Event, h event.Handler) {
+	s.eventManager.Listen(e, h)
 }
 
 func (s *Server) waitSignals() {
