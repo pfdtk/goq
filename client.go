@@ -81,3 +81,20 @@ func (c *Client) AddRedisConnect(name string, conn *redis.Client) {
 func (c *Client) AddSqsConnect(name string, conn *sqs.Client) {
 	connect.AddSqsConnect(name, conn)
 }
+
+func (c *Client) Dispatch(
+	task task.Task,
+	payload []byte,
+	opt ...task.DispatchOptFunc) (err error) {
+
+	return Dispatch(task, payload, opt...)
+}
+
+func (c *Client) DispatchContext(
+	ctx context.Context,
+	task task.Task,
+	payload []byte,
+	opts ...task.DispatchOptFunc) (err error) {
+
+	return DispatchContext(ctx, task, payload, opts...)
+}

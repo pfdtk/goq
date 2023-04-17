@@ -86,7 +86,7 @@ func (b *BaseTask) Dispatch(payload []byte, opt ...DispatchOptFunc) (err error) 
 func (b *BaseTask) DispatchContext(
 	ctx context.Context,
 	payload []byte,
-	optFun ...DispatchOptFunc) (err error) {
+	optsFun ...DispatchOptFunc) (err error) {
 
 	q := qm.GetQueue(b.OnConnect(), b.QueueType())
 	if q == nil {
@@ -101,7 +101,7 @@ func (b *BaseTask) DispatchContext(
 		Retries: b.Retries(),
 	}
 	opt := &DispatchOpt{}
-	for _, fn := range optFun {
+	for _, fn := range optsFun {
 		fn(opt)
 	}
 	if opt.Delay == 0 {

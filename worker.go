@@ -175,16 +175,12 @@ func (w *worker) perform(job *task.Job) (res any, err error) {
 	return
 }
 
-func (w *worker) getQueue(t task.Task) queue.Queue {
-	return qm.GetQueue(t.OnConnect(), t.QueueType())
-}
-
 func (w *worker) getNextJob() (*task.Job, error) {
 	for _, t := range w.sortTasks {
 		if t.Status() == task.Disable || !t.CanRun() {
 			continue
 		}
-		q := w.getQueue(t)
+		q := qm.GetQueue(t.OnConnect(), t.QueueType())
 		if q == nil {
 			continue
 		}
