@@ -16,11 +16,13 @@ import (
 
 type Server struct {
 	tasks        sync.Map
+	cronTasks    []*CronTask
 	maxWorker    int
 	worker       *worker
 	wg           sync.WaitGroup
 	logger       logger.Logger
 	migrate      *migrate
+	scheduler    *scheduler
 	eventManager *event.Manager
 }
 
@@ -39,6 +41,10 @@ func (s *Server) Start(ctx context.Context) error {
 		return err
 	}
 	err = s.startMigrate(ctx)
+	if err != nil {
+		return err
+	}
+	err = s.startScheduler(ctx)
 	if err != nil {
 		return err
 	}
@@ -65,14 +71,26 @@ func (s *Server) startMigrate(ctx context.Context) error {
 	return migrate.startMigrate()
 }
 
+func (s *Server) startScheduler(ctx context.Context) error {
+	s.logger.Info("starting scheduler...")
+	scheduler := newScheduler(ctx, s)
+	s.scheduler = scheduler
+	return scheduler.startScheduler()
+}
+
 func (s *Server) stopServer() {
 	s.logger.Info("Gracefully down server...")
 	s.migrate.stopMigrating()
 	s.worker.stopConsuming()
+	s.scheduler.stopScheduler()
 }
 
 func (s *Server) RegisterTask(task task.Task) {
 	s.tasks.Store(task.GetName(), task)
+}
+
+func (s *Server) RegisterCronTask(spec string, task task.Task) {
+	s.cronTasks = append(s.cronTasks, &CronTask{spec: spec, task: task})
 }
 
 func (s *Server) AddConnect(name string, conn any) {

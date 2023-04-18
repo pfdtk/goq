@@ -5,6 +5,8 @@
 - job retry
 - job backoff retry
 - job execute timeout notice
+- scheduler task [todo]
+- panic recover [todo]
 - job unique with time ttl [todo] 
 - middleware [todo]
 - prometheus [todo]
