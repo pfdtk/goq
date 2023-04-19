@@ -3,8 +3,8 @@ package goq
 import (
 	"context"
 	"encoding/json"
-	"github.com/pfdtk/goq/event"
-	em "github.com/pfdtk/goq/internal/event"
+	events "github.com/pfdtk/goq/event"
+	"github.com/pfdtk/goq/internal/event"
 	"github.com/pfdtk/goq/logger"
 	"github.com/pfdtk/goq/task"
 	"github.com/robfig/cron/v3"
@@ -19,7 +19,6 @@ type CronTask struct {
 type scheduler struct {
 	cron   *cron.Cron
 	ctx    context.Context
-	em     *em.Manager
 	tasks  []*CronTask
 	logger logger.Logger
 }
@@ -59,11 +58,11 @@ func (s *scheduler) register(spec string, t task.Task) error {
 		// when scheduler, we will dispatch task to queue, then process by worker
 		payload, err := json.Marshal(&Payload{CreatedAt: time.Now().Unix()})
 		if err != nil {
-			s.em.Dispatch(event.NewSchedulerErrorEvent(err))
+			event.Dispatch(events.NewSchedulerErrorEvent(err))
 		}
 		err = client.DispatchContext(s.ctx, t, payload)
 		if err != nil {
-			s.em.Dispatch(event.NewSchedulerErrorEvent(err))
+			event.Dispatch(events.NewSchedulerErrorEvent(err))
 		}
 	})
 	return err
