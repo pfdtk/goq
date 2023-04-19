@@ -1,13 +1,11 @@
-package event
-
-import "github.com/pfdtk/goq/task"
+package task
 
 type JobBeforeRunEvent struct {
-	task task.Task
-	job  *task.Job
+	task Task
+	job  *Job
 }
 
-func NewJobBeforeRunEvent(t task.Task, j *task.Job) *JobBeforeRunEvent {
+func NewJobBeforeRunEvent(t Task, j *Job) *JobBeforeRunEvent {
 	return &JobBeforeRunEvent{task: t, job: j}
 }
 

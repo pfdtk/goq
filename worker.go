@@ -3,7 +3,6 @@ package goq
 import (
 	"context"
 	"errors"
-	evt "github.com/pfdtk/goq/event"
 	"github.com/pfdtk/goq/internal/event"
 	qm "github.com/pfdtk/goq/internal/queue"
 	"github.com/pfdtk/goq/internal/utils"
@@ -155,9 +154,9 @@ func (w *worker) perform(job *task.Job) (res any, err error) {
 	v, ok := w.tasks.Load(name)
 	if ok {
 		t = v.(task.Task)
-		event.Dispatch(evt.NewJobBeforeRunEvent(t, job))
+		event.Dispatch(task.NewJobBeforeRunEvent(t, job))
 		res, err = t.Run(w.ctx, job)
-		event.Dispatch(evt.NewJobAfterRunEvent(t, job))
+		event.Dispatch(task.NewJobAfterRunEvent(t, job))
 		if err != nil {
 			w.handleJobError(t, job, err)
 		} else {
@@ -197,19 +196,19 @@ func (w *worker) handleJobDone(_ task.Task, job *task.Job) (err error) {
 	return job.Delete(w.ctx)
 }
 
-func (w *worker) handleJobError(task task.Task, job *task.Job, _ error) {
+func (w *worker) handleJobError(t task.Task, job *task.Job, _ error) {
 	w.logger.Infof("job fail, id=%s, name=%s", job.Id(), job.Name())
 	if !job.IsReachMacAttempts() {
 		w.logger.Infof("job retry, id=%s, name=%s", job.Id(), job.Name())
-		_ = w.retry(task, job)
+		_ = w.retry(t, job)
 	} else {
 		_ = job.Delete(w.ctx)
 	}
-	event.Dispatch(evt.NewJobErrorEvent(task, job))
+	event.Dispatch(task.NewJobErrorEvent(t, job))
 }
 
 func (w *worker) handleError(err error) {
-	event.Dispatch(evt.NewWorkErrorEvent(err))
+	event.Dispatch(NewWorkErrorEvent(err))
 }
 
 func (w *worker) retry(task task.Task, job *task.Job) (err error) {

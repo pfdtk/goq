@@ -1,4 +1,4 @@
-package event
+package goq
 
 type SchedulerErrorEvent struct {
 	err error

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"github.com/google/uuid"
+	"github.com/pfdtk/goq/internal/event"
 	qm "github.com/pfdtk/goq/internal/queue"
 	"github.com/pfdtk/goq/queue"
 	"time"
@@ -110,6 +111,9 @@ func (b *BaseTask) DispatchContext(
 		sec := time.Duration(opt.Delay) * time.Second
 		at := time.Now().Add(sec)
 		err = q.Later(ctx, message, at)
+	}
+	if err == nil {
+		event.Dispatch(NewJobAddEvent(b, message))
 	}
 	return
 }

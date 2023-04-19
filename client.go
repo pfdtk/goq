@@ -6,7 +6,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/google/uuid"
 	"github.com/pfdtk/goq/connect"
-	events "github.com/pfdtk/goq/event"
 	"github.com/pfdtk/goq/internal/event"
 	qm "github.com/pfdtk/goq/internal/queue"
 	"github.com/pfdtk/goq/logger"
@@ -61,7 +60,7 @@ func DispatchContext(
 		err = q.Later(ctx, message, at)
 	}
 	if err == nil {
-		event.Dispatch(events.NewJobAddEvent(t, message))
+		event.Dispatch(task.NewJobAddEvent(t, message))
 	}
 	return
 }

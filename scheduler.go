@@ -3,7 +3,6 @@ package goq
 import (
 	"context"
 	"encoding/json"
-	events "github.com/pfdtk/goq/event"
 	"github.com/pfdtk/goq/internal/event"
 	"github.com/pfdtk/goq/logger"
 	"github.com/pfdtk/goq/task"
@@ -58,11 +57,11 @@ func (s *scheduler) register(spec string, t task.Task) error {
 		// when scheduler, we will dispatch task to queue, then process by worker
 		payload, err := json.Marshal(&Payload{CreatedAt: time.Now().Unix()})
 		if err != nil {
-			event.Dispatch(events.NewSchedulerErrorEvent(err))
+			event.Dispatch(NewSchedulerErrorEvent(err))
 		}
 		err = client.DispatchContext(s.ctx, t, payload)
 		if err != nil {
-			event.Dispatch(events.NewSchedulerErrorEvent(err))
+			event.Dispatch(NewSchedulerErrorEvent(err))
 		}
 	})
 	return err

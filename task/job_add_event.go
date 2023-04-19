@@ -1,16 +1,15 @@
-package event
+package task
 
 import (
 	"github.com/pfdtk/goq/queue"
-	"github.com/pfdtk/goq/task"
 )
 
 type JobAddEvent struct {
-	task    task.Task
+	task    Task
 	message *queue.Message
 }
 
-func NewJobAddEvent(t task.Task, message *queue.Message) *JobAddEvent {
+func NewJobAddEvent(t Task, message *queue.Message) *JobAddEvent {
 	return &JobAddEvent{task: t, message: message}
 }
 
