@@ -12,17 +12,19 @@ import (
 	"os"
 	"os/signal"
 	"sync"
+	"time"
 )
 
 type Server struct {
-	tasks     sync.Map
-	cronTasks []*CronTask
-	maxWorker int
-	worker    *worker
-	wg        sync.WaitGroup
-	logger    logger.Logger
-	migrate   *migrate
-	scheduler *scheduler
+	tasks             sync.Map
+	cronTasks         []*CronTask
+	maxWorker         int
+	worker            *worker
+	wg                sync.WaitGroup
+	logger            logger.Logger
+	migrate           *migrate
+	scheduler         *scheduler
+	schedulerLocation *time.Location
 }
 
 func NewServer(config *ServerConfig) *Server {

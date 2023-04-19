@@ -67,7 +67,7 @@ func (w *worker) startPop() {
 		for {
 			select {
 			case <-w.stopRun:
-				w.logger.Debug("received stop sign")
+				w.logger.Debug("worker received stop sign")
 				return
 			case w.maxWorker <- struct{}{}:
 				go w.pop()

@@ -65,7 +65,7 @@ func (m *migrate) migrateRedisTasks(t task.Task, cat MigrateType) {
 		for {
 			select {
 			case <-m.stopRun:
-				m.logger.Infof("stopping migrate task, name=%s", t.GetName())
+				m.logger.Infof("migrate task stopped, task=%s, name=%s", cat, t.GetName())
 				timer.Stop()
 				return
 			case <-timer.C:

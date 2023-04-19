@@ -5,7 +5,7 @@
 - job retry
 - job backoff retry
 - job execute timeout notice
-- scheduler task [todo]
+- scheduler task
 - panic recover [todo]
 - job unique with time ttl [todo] 
 - middleware [todo]

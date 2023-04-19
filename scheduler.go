@@ -27,8 +27,12 @@ type Payload struct {
 }
 
 func newScheduler(ctx context.Context, s *Server) *scheduler {
+	loc := s.schedulerLocation
+	if loc == nil {
+		loc = time.UTC
+	}
 	return &scheduler{
-		cron:   cron.New(cron.WithLocation(time.UTC)),
+		cron:   cron.New(cron.WithLocation(loc)),
 		ctx:    ctx,
 		logger: s.logger,
 		tasks:  s.cronTasks,
@@ -47,8 +51,10 @@ func (s *scheduler) startScheduler() error {
 }
 
 func (s *scheduler) stopScheduler() {
+	s.logger.Info("stopping scheduler...")
 	ctx := s.cron.Stop()
 	<-ctx.Done()
+	s.logger.Info("scheduler stopped")
 }
 
 func (s *scheduler) register(spec string, t task.Task) error {
