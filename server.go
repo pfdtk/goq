@@ -15,22 +15,20 @@ import (
 )
 
 type Server struct {
-	tasks        sync.Map
-	cronTasks    []*CronTask
-	maxWorker    int
-	worker       *worker
-	wg           sync.WaitGroup
-	logger       logger.Logger
-	migrate      *migrate
-	scheduler    *scheduler
-	eventManager *event.Manager
+	tasks     sync.Map
+	cronTasks []*CronTask
+	maxWorker int
+	worker    *worker
+	wg        sync.WaitGroup
+	logger    logger.Logger
+	migrate   *migrate
+	scheduler *scheduler
 }
 
 func NewServer(config *ServerConfig) *Server {
 	return &Server{
-		maxWorker:    config.MaxWorker,
-		logger:       config.logger,
-		eventManager: event.NewManager(),
+		maxWorker: config.MaxWorker,
+		logger:    config.logger,
 	}
 }
 
@@ -106,7 +104,7 @@ func (s *Server) AddSqsConnect(name string, conn *sqs.Client) {
 }
 
 func (s *Server) Listen(e event.Event, h event.Handler) {
-	s.eventManager.Listen(e, h)
+	event.Listen(e, h)
 }
 
 func (s *Server) waitSignals() {

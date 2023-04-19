@@ -64,8 +64,7 @@ func DispatchContext(
 
 func NewClient(config *ClientConfig) *Client {
 	client = &Client{
-		logger:       config.logger,
-		eventManager: event.NewManager(),
+		logger: config.logger,
 	}
 	return client
 }

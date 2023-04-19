@@ -29,7 +29,6 @@ type worker struct {
 	jobChannel chan *task.Job
 	ctx        context.Context
 	logger     logger.Logger
-	em         *event.Manager
 }
 
 func newWorker(ctx context.Context, s *Server) *worker {
@@ -41,14 +40,8 @@ func newWorker(ctx context.Context, s *Server) *worker {
 		jobChannel: make(chan *task.Job, s.maxWorker),
 		ctx:        ctx,
 		logger:     s.logger,
-		em:         s.eventManager,
 	}
-	w.registerEvents()
 	return w
-}
-
-func (w *worker) registerEvents() {
-	w.em.Listen(&evt.WorkErrorEvent{}, evt.NewWorkerErrorHandler())
 }
 
 func (w *worker) startConsuming() error {
@@ -162,9 +155,9 @@ func (w *worker) perform(job *task.Job) (res any, err error) {
 	v, ok := w.tasks.Load(name)
 	if ok {
 		t = v.(task.Task)
-		w.em.Dispatch(evt.NewJobBeforeRunEvent(t, job))
+		event.Dispatch(evt.NewJobBeforeRunEvent(t, job))
 		res, err = t.Run(w.ctx, job)
-		w.em.Dispatch(evt.NewJobAfterRunEvent(t, job))
+		event.Dispatch(evt.NewJobAfterRunEvent(t, job))
 		if err != nil {
 			w.handleJobError(t, job, err)
 		} else {
@@ -212,11 +205,11 @@ func (w *worker) handleJobError(task task.Task, job *task.Job, _ error) {
 	} else {
 		_ = job.Delete(w.ctx)
 	}
-	w.em.Dispatch(evt.NewJobErrorEvent(task, job))
+	event.Dispatch(evt.NewJobErrorEvent(task, job))
 }
 
 func (w *worker) handleError(err error) {
-	w.em.Dispatch(evt.NewWorkErrorEvent(err))
+	event.Dispatch(evt.NewWorkErrorEvent(err))
 }
 
 func (w *worker) retry(task task.Task, job *task.Job) (err error) {

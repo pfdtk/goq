@@ -2,6 +2,8 @@ package event
 
 import "sync"
 
+var manager = newManager()
+
 type Event interface {
 	Name() string
 }
@@ -15,10 +17,14 @@ type Manager struct {
 	lock  sync.Mutex
 }
 
-func NewManager() *Manager {
+func newManager() *Manager {
 	return &Manager{
 		event: make(map[string][]Handler),
 	}
+}
+
+func Listen(e Event, h Handler) {
+	manager.Listen(e, h)
 }
 
 func (m *Manager) Listen(e Event, h Handler) {
@@ -28,6 +34,10 @@ func (m *Manager) Listen(e Event, h Handler) {
 	handles := m.event[en]
 	handles = append(handles, h)
 	m.event[en] = handles
+}
+
+func Dispatch(e Event) {
+	manager.Dispatch(e)
 }
 
 func (m *Manager) Dispatch(e Event) {
