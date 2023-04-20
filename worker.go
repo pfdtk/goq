@@ -7,6 +7,7 @@ import (
 	qm "github.com/pfdtk/goq/internal/queue"
 	"github.com/pfdtk/goq/internal/utils"
 	"github.com/pfdtk/goq/logger"
+	"github.com/pfdtk/goq/pipeline"
 	"github.com/pfdtk/goq/queue"
 	"github.com/pfdtk/goq/task"
 	"runtime/debug"
@@ -172,7 +173,7 @@ func (w *worker) performThroughMiddleware(t task.Task, job *task.Job) (res any, 
 		}
 	}
 	// run task through middleware
-	task.NewPipeline().Send(task.NewPassable(t, job)).
+	pipeline.NewPipeline().Send(task.NewPassable(t, job)).
 		Through(t.Middleware()).Then(fn)
 	return
 }

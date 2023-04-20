@@ -1,6 +1,7 @@
 package task
 
 import (
+	"github.com/pfdtk/goq/pipeline"
 	"github.com/pfdtk/goq/queue"
 	"testing"
 )
@@ -26,15 +27,16 @@ func NewTask() *TestTask {
 }
 
 func TestNewMiddlewarePipeline(t *testing.T) {
-	var mds = []Middleware{MiddlewareFunc(func(p *Passable, next func(passable *Passable)) {
+	var mds = []Middleware{MiddlewareFunc(func(p any, next func(passable any)) {
 		println(p.t.GetName(), 1)
 		next(p)
-	}), MiddlewareFunc(func(p *Passable, next func(passable *Passable)) {
+	}), MiddlewareFunc(func(p any, next func(passable any)) {
 		println(p.t.GetName(), 2)
 		next(p)
 	})}
-	p := NewPipeline()
-	p.Through(mds).Send(NewPassable(NewTask(), nil)).Then(func() {
+	p := pipeline.NewPipeline()
+	hds := mds.([]pipeline.Handler)
+	p.Through(hds).Send(NewPassable(NewTask(), nil)).Then(func() {
 		println("end")
 	})
 }
