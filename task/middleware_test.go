@@ -26,10 +26,10 @@ func NewTask() *TestTask {
 }
 
 func TestNewMiddlewarePipeline(t *testing.T) {
-	var mds = []Middleware{FuncHandler(func(p *Passable, next func(passable *Passable)) {
+	var mds = []Middleware{MiddlewareFunc(func(p *Passable, next func(passable *Passable)) {
 		println(p.t.GetName(), 1)
 		next(p)
-	}), FuncHandler(func(p *Passable, next func(passable *Passable)) {
+	}), MiddlewareFunc(func(p *Passable, next func(passable *Passable)) {
 		println(p.t.GetName(), 2)
 		next(p)
 	})}

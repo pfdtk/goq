@@ -20,14 +20,14 @@ var (
 )
 
 type worker struct {
-	tasks      *sync.Map
-	sortTasks  []task.Task
-	wg         *sync.WaitGroup
-	stopRun    chan struct{}
-	maxWorker  chan struct{}
-	jobChannel chan *task.Job
-	ctx        context.Context
-	logger     logger.Logger
+	tasks       *sync.Map
+	sortedTasks []task.Task
+	wg          *sync.WaitGroup
+	stopRun     chan struct{}
+	maxWorker   chan struct{}
+	jobChannel  chan *task.Job
+	ctx         context.Context
+	logger      logger.Logger
 }
 
 func newWorker(ctx context.Context, s *Server) *worker {
@@ -44,7 +44,7 @@ func newWorker(ctx context.Context, s *Server) *worker {
 }
 
 func (w *worker) startConsuming() error {
-	w.sortTasks = utils.SortTask(w.tasks)
+	w.sortedTasks = utils.SortTask(w.tasks)
 	w.startPop()
 	w.startWork()
 	return nil
@@ -172,12 +172,13 @@ func (w *worker) performThroughMiddleware(t task.Task, job *task.Job) (res any, 
 		}
 	}
 	// run task through middleware
-	task.NewPipeline().Send(task.NewPassable(t, job)).Through(t.Middleware()).Then(fn)
+	task.NewPipeline().Send(task.NewPassable(t, job)).
+		Through(t.Middleware()).Then(fn)
 	return
 }
 
 func (w *worker) getNextJob() (*task.Job, error) {
-	for _, t := range w.sortTasks {
+	for _, t := range w.sortedTasks {
 		if t.Status() == task.Disable {
 			continue
 		}

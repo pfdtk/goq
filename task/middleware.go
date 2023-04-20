@@ -5,9 +5,9 @@ type Middleware interface {
 	Handle(p *Passable, next func(passable *Passable))
 }
 
-type FuncHandler func(p *Passable, next func(passable *Passable))
+type MiddlewareFunc func(p *Passable, next func(passable *Passable))
 
-func (f FuncHandler) Handle(p *Passable, next func(passable *Passable)) {
+func (f MiddlewareFunc) Handle(p *Passable, next func(passable *Passable)) {
 	f(p, next)
 }
 
