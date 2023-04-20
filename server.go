@@ -17,7 +17,7 @@ import (
 
 type Server struct {
 	tasks             sync.Map
-	cronTasks         []*CronTask
+	cronTasks         []*cronTask
 	maxWorker         int
 	worker            *worker
 	wg                sync.WaitGroup
@@ -90,7 +90,7 @@ func (s *Server) RegisterTask(task task.Task) {
 }
 
 func (s *Server) RegisterCronTask(spec string, task task.Task) {
-	s.cronTasks = append(s.cronTasks, &CronTask{spec: spec, task: task})
+	s.cronTasks = append(s.cronTasks, &cronTask{spec: spec, task: task})
 }
 
 func (s *Server) AddConnect(name string, conn any) {

@@ -15,7 +15,7 @@ import (
 )
 
 var (
-	EmptyJobError       = errors.New("no jobs are ready for processing")
+	JobEmptyError       = errors.New("no jobs are ready for processing")
 	JobExecTimeoutError = errors.New("job exec timeout")
 )
 
@@ -67,7 +67,7 @@ func (w *worker) startPop() {
 		for {
 			select {
 			case <-w.stopRun:
-				w.logger.Debug("worker received stop sign")
+				w.logger.Info("worker received stop sign")
 				return
 			case w.maxWorker <- struct{}{}:
 				go w.pop()
@@ -79,7 +79,7 @@ func (w *worker) startPop() {
 func (w *worker) pop() {
 	j, err := w.getNextJob()
 	switch {
-	case errors.Is(err, EmptyJobError):
+	case errors.Is(err, JobEmptyError):
 		w.handleError(err)
 		time.Sleep(time.Second)
 		<-w.maxWorker
@@ -130,7 +130,6 @@ func (w *worker) runJob(job *task.Job) {
 	}()
 	select {
 	case <-prh:
-		// todo write response to backend, prh may be an error
 		return
 	case <-ctx.Done():
 		w.logger.Infof("job timeout, id=%s, name=%s", job.Id(), job.Name())
@@ -147,6 +146,8 @@ func (w *worker) perform(job *task.Job) (res any, err error) {
 			err = errors.New(string(debug.Stack()))
 			if t != nil {
 				w.handleJobError(t, job, err)
+			} else {
+				w.handleError(err)
 			}
 		}
 	}()
@@ -161,7 +162,7 @@ func (w *worker) perform(job *task.Job) (res any, err error) {
 			w.handleJobError(t, job, err)
 		} else {
 			w.logger.Infof("job processed, id=%s, name=%s", job.Id(), job.Name())
-			_ = w.handleJobDone(t, job)
+			w.handleJobDone(t, job)
 		}
 	}
 	return
@@ -181,7 +182,7 @@ func (w *worker) getNextJob() (*task.Job, error) {
 			return j, nil
 		}
 	}
-	return nil, EmptyJobError
+	return nil, JobEmptyError
 }
 
 func (w *worker) getJob(q queue.Queue, qn string) (*task.Job, error) {
@@ -192,19 +193,24 @@ func (w *worker) getJob(q queue.Queue, qn string) (*task.Job, error) {
 	return nil, err
 }
 
-func (w *worker) handleJobDone(_ task.Task, job *task.Job) (err error) {
-	return job.Delete(w.ctx)
+func (w *worker) handleJobDone(_ task.Task, job *task.Job) {
+	err := job.Delete(w.ctx)
+	event.Dispatch(NewWorkErrorEvent(err))
 }
 
-func (w *worker) handleJobError(t task.Task, job *task.Job, _ error) {
+func (w *worker) handleJobError(t task.Task, job *task.Job, err error) {
 	w.logger.Infof("job fail, id=%s, name=%s", job.Id(), job.Name())
+	var e error
 	if !job.IsReachMacAttempts() {
 		w.logger.Infof("job retry, id=%s, name=%s", job.Id(), job.Name())
-		_ = w.retry(t, job)
+		e = w.retry(t, job)
 	} else {
-		_ = job.Delete(w.ctx)
+		e = job.Delete(w.ctx)
 	}
-	event.Dispatch(task.NewJobErrorEvent(t, job))
+	if e != nil {
+		err = errors.Join(err, e)
+	}
+	event.Dispatch(task.NewJobErrorEvent(t, job, err))
 }
 
 func (w *worker) handleError(err error) {

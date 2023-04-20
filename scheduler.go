@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-type CronTask struct {
+type cronTask struct {
 	spec string
 	task task.Task
 }
@@ -18,11 +18,11 @@ type CronTask struct {
 type scheduler struct {
 	cron   *cron.Cron
 	ctx    context.Context
-	tasks  []*CronTask
+	tasks  []*cronTask
 	logger logger.Logger
 }
 
-type Payload struct {
+type payload struct {
 	CreatedAt int64 `json:"created_at"`
 }
 
@@ -61,7 +61,7 @@ func (s *scheduler) register(spec string, t task.Task) error {
 	_, err := s.cron.AddFunc(spec, func() {
 		s.logger.Infof("scheduler trigger, name=%s", t.GetName())
 		// when scheduler, we will dispatch task to queue, then process by worker
-		payload, err := json.Marshal(&Payload{CreatedAt: time.Now().Unix()})
+		payload, err := json.Marshal(&payload{CreatedAt: time.Now().Unix()})
 		if err != nil {
 			event.Dispatch(NewSchedulerErrorEvent(err))
 		}
