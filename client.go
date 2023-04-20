@@ -6,7 +6,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/google/uuid"
 	"github.com/pfdtk/goq/connect"
-	"github.com/pfdtk/goq/internal/event"
+	"github.com/pfdtk/goq/event"
 	qm "github.com/pfdtk/goq/internal/queue"
 	"github.com/pfdtk/goq/logger"
 	"github.com/pfdtk/goq/queue"

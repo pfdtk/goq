@@ -3,7 +3,7 @@ package goq
 import (
 	"context"
 	"encoding/json"
-	"github.com/pfdtk/goq/internal/event"
+	"github.com/pfdtk/goq/event"
 	"github.com/pfdtk/goq/logger"
 	"github.com/pfdtk/goq/task"
 	"github.com/robfig/cron/v3"

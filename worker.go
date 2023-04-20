@@ -3,7 +3,7 @@ package goq
 import (
 	"context"
 	"errors"
-	"github.com/pfdtk/goq/internal/event"
+	"github.com/pfdtk/goq/event"
 	qm "github.com/pfdtk/goq/internal/queue"
 	"github.com/pfdtk/goq/internal/utils"
 	"github.com/pfdtk/goq/logger"
@@ -161,7 +161,6 @@ func (w *worker) perform(job *task.Job) (res any, err error) {
 		if err != nil {
 			w.handleJobError(t, job, err)
 		} else {
-			w.logger.Infof("job processed, id=%s, name=%s", job.Id(), job.Name())
 			w.handleJobDone(t, job)
 		}
 	}
@@ -194,6 +193,7 @@ func (w *worker) getJob(q queue.Queue, qn string) (*task.Job, error) {
 }
 
 func (w *worker) handleJobDone(_ task.Task, job *task.Job) {
+	w.logger.Infof("job processed, id=%s, name=%s", job.Id(), job.Name())
 	err := job.Delete(w.ctx)
 	event.Dispatch(NewWorkErrorEvent(err))
 }

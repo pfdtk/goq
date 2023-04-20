@@ -4,14 +4,6 @@ import "sync"
 
 var manager = newManager()
 
-type Event interface {
-	Name() string
-}
-
-type Handler interface {
-	Handle(e Event) (bool, error)
-}
-
 type Manager struct {
 	event map[string][]Handler
 	lock  sync.Mutex

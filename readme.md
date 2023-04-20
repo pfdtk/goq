@@ -6,9 +6,9 @@
 - job backoff retry
 - job execute timeout notice
 - scheduler task
-- panic recover [todo]
-- job unique with time ttl [todo] 
 - middleware [todo]
+- job unique with time ttl [todo]
+- panic recover [todo]
 - prometheus [todo]
 - cli inspect [todo]
 

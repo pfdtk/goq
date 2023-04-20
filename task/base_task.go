@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"github.com/google/uuid"
-	"github.com/pfdtk/goq/internal/event"
+	"github.com/pfdtk/goq/event"
 	qm "github.com/pfdtk/goq/internal/queue"
 	"github.com/pfdtk/goq/queue"
 	"time"
@@ -78,6 +78,10 @@ func (b *BaseTask) Timeout() int64 {
 
 func (b *BaseTask) UniqueId() string {
 	return b.Option.UniqueId
+}
+
+func (b *BaseTask) Middleware() []*Middleware {
+	return nil
 }
 
 func (b *BaseTask) Dispatch(payload []byte, opt ...DispatchOptFunc) (err error) {

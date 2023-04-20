@@ -25,12 +25,12 @@ func (t *TestHandle) Handle(e Event) (bool, error) {
 }
 
 func TestManager_Listen(t *testing.T) {
-	m := NewManager()
+	m := newManager()
 	m.Listen(&TestEvent{}, &TestHandle{})
 }
 
 func TestManager_Dispatch(t *testing.T) {
-	m := NewManager()
+	m := newManager()
 	e := &TestEvent{}
 	m.Listen(e, &TestHandle{})
 	m.Dispatch(e)

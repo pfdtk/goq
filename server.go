@@ -4,7 +4,7 @@ import (
 	"context"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/pfdtk/goq/connect"
-	"github.com/pfdtk/goq/internal/event"
+	"github.com/pfdtk/goq/event"
 	"github.com/pfdtk/goq/logger"
 	"github.com/pfdtk/goq/task"
 	"github.com/redis/go-redis/v9"
