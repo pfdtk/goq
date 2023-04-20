@@ -155,19 +155,24 @@ func (w *worker) perform(job *task.Job) (res any, err error) {
 	v, ok := w.tasks.Load(name)
 	if ok {
 		t = v.(task.Task)
-		// run task through middleware
-		task.NewMiddlewarePipeline().Send(task.NewPassable(t, job)).
-			Through(t.Middleware()).Then(func() {
-			event.Dispatch(task.NewJobBeforeRunEvent(t, job))
-			res, err = t.Run(w.ctx, job)
-			event.Dispatch(task.NewJobAfterRunEvent(t, job))
-			if err != nil {
-				w.handleJobError(t, job, err)
-			} else {
-				w.handleJobDone(t, job)
-			}
-		})
+		res, err = w.performThroughMiddleware(t, job)
 	}
+	return
+}
+
+func (w *worker) performThroughMiddleware(t task.Task, job *task.Job) (res any, err error) {
+	// run task through middleware
+	task.NewMiddlewarePipeline().Send(task.NewPassable(t, job)).
+		Through(t.Middleware()).Then(func() {
+		event.Dispatch(task.NewJobBeforeRunEvent(t, job))
+		res, err = t.Run(w.ctx, job)
+		event.Dispatch(task.NewJobAfterRunEvent(t, job))
+		if err != nil {
+			w.handleJobError(t, job, err)
+		} else {
+			w.handleJobDone(t, job)
+		}
+	})
 	return
 }
 
