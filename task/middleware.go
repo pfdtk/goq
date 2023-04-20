@@ -4,13 +4,13 @@ import "github.com/pfdtk/goq/pipeline"
 
 type Middleware interface {
 	// Handle continue if return True, else break
-	Handle(p any, next func(passable any))
+	Handle(passable any, next pipeline.Next) any
 }
 
-type MiddlewareFunc func(p any, next func(passable any))
+type MiddlewareFunc func(p any, next pipeline.Next) any
 
-func (f MiddlewareFunc) Handle(p any, next func(passable any)) {
-	f(p, next)
+func (f MiddlewareFunc) Handle(p any, next pipeline.Next) any {
+	return f(p, next)
 }
 
 type Passable struct {

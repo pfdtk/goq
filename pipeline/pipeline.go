@@ -1,14 +1,18 @@
 package pipeline
 
+type Next func(passable any) any
+
+type Callback func() any
+
 type Handler interface {
 	// Handle continue if return True, else break
-	Handle(passable any, next func(passable any))
+	Handle(passable any, next Next) any
 }
 
-type HandlerFunc func(p any, next func(passable any))
+type HandlerFunc func(p any, next Next) any
 
-func (f HandlerFunc) Handle(p any, next func(passable any)) {
-	f(p, next)
+func (f HandlerFunc) Handle(p any, next Next) any {
+	return f(p, next)
 }
 
 type Pipeline struct {
@@ -30,17 +34,17 @@ func (m *Pipeline) Through(hds []Handler) *Pipeline {
 	return m
 }
 
-func (m *Pipeline) Then(handle func()) {
+func (m *Pipeline) Then(handle Callback) any {
 	fn := m.resolve(handle)
-	fn(m.passable)
+	return fn(m.passable)
 }
 
-func (m *Pipeline) resolve(handle func()) func(passable any) {
-	var fn = func(passable any) { handle() }
+func (m *Pipeline) resolve(handle Callback) Next {
+	var fn = func(passable any) any { return handle() }
 	for i := len(m.handler) - 1; i >= 0; i-- {
-		fn = func(carry func(passable any), item Handler) func(passable any) {
-			return func(passable any) {
-				item.Handle(passable, carry)
+		fn = func(carry Next, item Handler) Next {
+			return func(passable any) any {
+				return item.Handle(passable, carry)
 			}
 		}(fn, m.handler[i])
 	}
