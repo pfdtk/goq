@@ -28,14 +28,14 @@ func NewTask() *TestTask {
 
 func TestNewMiddlewarePipeline(t *testing.T) {
 	var mds = []Middleware{MiddlewareFunc(func(p any, next func(passable any)) {
-		println(p.t.GetName(), 1)
+		println(1)
 		next(p)
 	}), MiddlewareFunc(func(p any, next func(passable any)) {
-		println(p.t.GetName(), 2)
+		println(2)
 		next(p)
 	})}
 	p := pipeline.NewPipeline()
-	hds := mds.([]pipeline.Handler)
+	hds := CastMiddlewareAsPipelineHandler(mds)
 	p.Through(hds).Send(NewPassable(NewTask(), nil)).Then(func() {
 		println("end")
 	})

@@ -173,8 +173,8 @@ func (w *worker) performThroughMiddleware(t task.Task, job *task.Job) (res any, 
 		}
 	}
 	// run task through middleware
-	pipeline.NewPipeline().Send(task.NewPassable(t, job)).
-		Through(t.Middleware()).Then(fn)
+	mds := task.CastMiddlewareAsPipelineHandler(t.Middleware())
+	pipeline.NewPipeline().Send(task.NewPassable(t, job)).Through(mds).Then(fn)
 	return
 }
 
