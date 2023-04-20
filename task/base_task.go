@@ -56,10 +56,6 @@ func (b *BaseTask) Status() Status {
 	return b.Option.Status
 }
 
-func (b *BaseTask) CanRun() bool {
-	return true
-}
-
 func (b *BaseTask) Backoff() uint {
 	return b.Option.Backoff
 }

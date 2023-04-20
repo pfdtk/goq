@@ -25,8 +25,6 @@ type Task interface {
 	GetName() string
 	// Status 0 is disabled, 1 is active
 	Status() Status
-	// CanRun check if task can run, e.g.: rate limit
-	CanRun() bool
 	// Backoff retry delay when exception throw
 	Backoff() uint
 	// Priority task priority

@@ -178,7 +178,7 @@ func (w *worker) performThroughMiddleware(t task.Task, job *task.Job) (res any, 
 
 func (w *worker) getNextJob() (*task.Job, error) {
 	for _, t := range w.sortTasks {
-		if t.Status() == task.Disable || !t.CanRun() {
+		if t.Status() == task.Disable {
 			continue
 		}
 		q := qm.GetQueue(t.OnConnect(), t.QueueType())
