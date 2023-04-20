@@ -35,7 +35,7 @@ func Dispatch(e Event) {
 func (m *Manager) Dispatch(e Event) {
 	handlers := m.event[e.Name()]
 	for _, h := range handlers {
-		ct, _ := h.Handle(e)
+		ct := h.Handle(e)
 		if ct == false {
 			break
 		}

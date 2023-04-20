@@ -38,5 +38,5 @@ type Task interface {
 	// UniqueId use for unique message for a time period
 	UniqueId() string
 	// Middleware of task
-	Middleware() []*Middleware
+	Middleware() []Middleware
 }

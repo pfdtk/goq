@@ -5,11 +5,11 @@ type Event interface {
 }
 
 type Handler interface {
-	Handle(e Event) (bool, error)
+	Handle(e Event) bool
 }
 
-type FuncHandler func(e Event) (bool, error)
+type FuncHandler func(e Event) bool
 
-func (f FuncHandler) Handle(e Event) (bool, error) {
+func (f FuncHandler) Handle(e Event) bool {
 	return f(e)
 }

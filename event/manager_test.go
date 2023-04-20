@@ -9,19 +9,12 @@ func (t *TestEvent) Name() string {
 	return "test"
 }
 
-type TestEvent2 struct {
-}
-
-func (t *TestEvent2) Name() string {
-	return "test2"
-}
-
 type TestHandle struct {
 }
 
-func (t *TestHandle) Handle(e Event) (bool, error) {
+func (t *TestHandle) Handle(e Event) bool {
 	println(e.Name())
-	return true, nil
+	return true
 }
 
 func TestManager_Listen(t *testing.T) {
