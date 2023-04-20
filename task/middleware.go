@@ -20,32 +20,31 @@ func NewPassable(t Task, j *Job) *Passable {
 	return &Passable{t: t, j: j}
 }
 
-type MiddlewarePipeline struct {
+type Pipeline struct {
 	middleware []Middleware
 	passable   *Passable
-	abort      bool
 }
 
-func NewMiddlewarePipeline() *MiddlewarePipeline {
-	return &MiddlewarePipeline{}
+func NewPipeline() *Pipeline {
+	return &Pipeline{}
 }
 
-func (m *MiddlewarePipeline) Send(passable *Passable) *MiddlewarePipeline {
+func (m *Pipeline) Send(passable *Passable) *Pipeline {
 	m.passable = passable
 	return m
 }
 
-func (m *MiddlewarePipeline) Through(md []Middleware) *MiddlewarePipeline {
+func (m *Pipeline) Through(md []Middleware) *Pipeline {
 	m.middleware = md
 	return m
 }
 
-func (m *MiddlewarePipeline) Then(handle func()) {
+func (m *Pipeline) Then(handle func()) {
 	fn := m.resolve(handle)
 	fn(m.passable)
 }
 
-func (m *MiddlewarePipeline) resolve(handle func()) func(passable *Passable) {
+func (m *Pipeline) resolve(handle func()) func(passable *Passable) {
 	var fn = func(passable *Passable) { handle() }
 	for i := len(m.middleware) - 1; i >= 0; i-- {
 		fn = func(carry func(passable *Passable), item Middleware) func(passable *Passable) {

@@ -161,9 +161,7 @@ func (w *worker) perform(job *task.Job) (res any, err error) {
 }
 
 func (w *worker) performThroughMiddleware(t task.Task, job *task.Job) (res any, err error) {
-	// run task through middleware
-	task.NewMiddlewarePipeline().Send(task.NewPassable(t, job)).
-		Through(t.Middleware()).Then(func() {
+	fn := func() {
 		event.Dispatch(task.NewJobBeforeRunEvent(t, job))
 		res, err = t.Run(w.ctx, job)
 		event.Dispatch(task.NewJobAfterRunEvent(t, job))
@@ -172,7 +170,9 @@ func (w *worker) performThroughMiddleware(t task.Task, job *task.Job) (res any, 
 		} else {
 			w.handleJobDone(t, job)
 		}
-	})
+	}
+	// run task through middleware
+	task.NewPipeline().Send(task.NewPassable(t, job)).Through(t.Middleware()).Then(fn)
 	return
 }
 

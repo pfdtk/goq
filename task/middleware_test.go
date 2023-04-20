@@ -33,7 +33,7 @@ func TestNewMiddlewarePipeline(t *testing.T) {
 		println(p.t.GetName(), 2)
 		next(p)
 	})}
-	p := NewMiddlewarePipeline()
+	p := NewPipeline()
 	p.Through(mds).Send(NewPassable(NewTask(), nil)).Then(func() {
 		println("end")
 	})
