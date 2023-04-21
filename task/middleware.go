@@ -3,14 +3,7 @@ package task
 import "github.com/pfdtk/goq/pipeline"
 
 type Middleware interface {
-	// Handle continue if return True, else break
-	Handle(passable any, next pipeline.Next) any
-}
-
-type MiddlewareFunc func(p any, next pipeline.Next) any
-
-func (f MiddlewareFunc) Handle(p any, next pipeline.Next) any {
-	return f(p, next)
+	pipeline.Handler
 }
 
 type Passable struct {
@@ -22,7 +15,7 @@ func NewPassable(t Task, j *Job) *Passable {
 	return &Passable{task: t, job: j}
 }
 
-func CastMiddlewareAsPipelineHandler(m []Middleware) []pipeline.Handler {
+func CastMiddleware(m []Middleware) []pipeline.Handler {
 	h := make([]pipeline.Handler, len(m), len(m))
 	for i, v := range m {
 		h[i] = pipeline.Handler(v)

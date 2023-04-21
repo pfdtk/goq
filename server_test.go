@@ -32,8 +32,7 @@ func NewTask() *TestTask {
 
 func (t *TestTask) Run(_ context.Context, _ *task.Job) (any, error) {
 	time.Sleep(2 * time.Second)
-	panic("12313123")
-	return nil, nil
+	return "test", nil
 }
 
 func TestServer_Start(t *testing.T) {
