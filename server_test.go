@@ -3,6 +3,7 @@ package goq
 import (
 	"context"
 	"github.com/pfdtk/goq/connect"
+	"github.com/pfdtk/goq/pipeline"
 	"github.com/pfdtk/goq/queue"
 	"github.com/pfdtk/goq/task"
 	"go.uber.org/zap"
@@ -33,6 +34,17 @@ func NewTask() *TestTask {
 func (t *TestTask) Run(_ context.Context, _ *task.Job) (any, error) {
 	time.Sleep(2 * time.Second)
 	return "test", nil
+}
+
+func (t *TestTask) BeforeMiddleware() []task.Middleware {
+	var mds = []task.Middleware{pipeline.HandlerFunc(func(p any, next pipeline.Next) any {
+		println("before middleware 1, can run: true")
+		return next(p)
+	}), pipeline.HandlerFunc(func(p any, next pipeline.Next) any {
+		println("before middleware 2, can run: true")
+		return next(p)
+	})}
+	return mds
 }
 
 func TestServer_Start(t *testing.T) {
