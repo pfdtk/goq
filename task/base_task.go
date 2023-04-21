@@ -76,7 +76,11 @@ func (b *BaseTask) UniqueId() string {
 	return b.Option.UniqueId
 }
 
-func (b *BaseTask) Middleware() []Middleware {
+func (b *BaseTask) BeforeMiddleware() []Middleware {
+	return nil
+}
+
+func (b *BaseTask) ProcessMiddleware() []Middleware {
 	return nil
 }
 

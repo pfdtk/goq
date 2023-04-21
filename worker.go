@@ -175,16 +175,25 @@ func (w *worker) performThroughMiddleware(t task.Task, job *task.Job) (res any, 
 		}
 		return nil
 	}
-	mds := task.CastMiddleware(t.Middleware())
+	mds := task.CastMiddleware(t.ProcessMiddleware())
 	// run task through middleware
-	passable := task.NewPassable(t, job)
+	passable := task.NewRunPassable(t, job)
 	w.pl.Send(passable).Through(mds).Then(fn)
 	return
 }
 
 func (w *worker) getNextJob() (*task.Job, error) {
 	for _, t := range w.sortedTasks {
-		if t.Status() == task.Disable {
+		// check if task can pop message through middleware,
+		// and middleware handle should return a bool value
+		mds := task.CastMiddleware(t.BeforeMiddleware())
+		passable := task.NewPopPassable()
+		skip := w.pl.Send(passable).Through(mds).Then(func(_ any) any {
+			// pop by default
+			return true
+		})
+		canPop, ok := skip.(bool)
+		if t.Status() == task.Disable || !ok || !canPop {
 			continue
 		}
 		q := qm.GetQueue(t.OnConnect(), t.QueueType())

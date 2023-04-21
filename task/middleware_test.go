@@ -32,12 +32,11 @@ func TestNewMiddlewarePipeline(t *testing.T) {
 		return next(p)
 	}), pipeline.HandlerFunc(func(p any, next pipeline.Next) any {
 		println(2)
-		nr := next(p)
-		return nr
+		return next(p)
 	})}
 	p := pipeline.NewPipeline()
 	hds := CastMiddleware(mds)
-	r := p.Through(hds).Send(NewPassable(NewTask(), nil)).Then(func(_ any) any {
+	r := p.Through(hds).Send(NewRunPassable(NewTask(), nil)).Then(func(_ any) any {
 		println("end")
 		return "return end"
 	})

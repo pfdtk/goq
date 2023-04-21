@@ -6,13 +6,20 @@ type Middleware interface {
 	pipeline.Handler
 }
 
-type Passable struct {
+type RunPassable struct {
 	task Task
 	job  *Job
 }
 
-func NewPassable(t Task, j *Job) *Passable {
-	return &Passable{task: t, job: j}
+func NewRunPassable(t Task, j *Job) *RunPassable {
+	return &RunPassable{task: t, job: j}
+}
+
+type PopPassable struct {
+}
+
+func NewPopPassable() *PopPassable {
+	return &PopPassable{}
 }
 
 func CastMiddleware(m []Middleware) []pipeline.Handler {

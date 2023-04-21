@@ -35,6 +35,8 @@ type Task interface {
 	Timeout() int64
 	// UniqueId use for unique message for a time period
 	UniqueId() string
-	// Middleware of task
-	Middleware() []Middleware
+	// BeforeMiddleware a list of middleware decide whether to start to process this task
+	BeforeMiddleware() []Middleware
+	// ProcessMiddleware a list of middleware a task run through
+	ProcessMiddleware() []Middleware
 }
