@@ -29,6 +29,7 @@ type worker struct {
 	jobChannel  chan *task.Job
 	ctx         context.Context
 	logger      logger.Logger
+	pl          *pipeline.Pipeline
 }
 
 func newWorker(ctx context.Context, s *Server) *worker {
@@ -40,6 +41,7 @@ func newWorker(ctx context.Context, s *Server) *worker {
 		jobChannel: make(chan *task.Job, s.maxWorker),
 		ctx:        ctx,
 		logger:     s.logger,
+		pl:         pipeline.NewPipeline(),
 	}
 	return w
 }
@@ -173,9 +175,10 @@ func (w *worker) performThroughMiddleware(t task.Task, job *task.Job) (res any, 
 		}
 		return nil
 	}
-	// run task through middleware
 	mds := task.CastMiddleware(t.Middleware())
-	pipeline.NewPipeline().Send(task.NewPassable(t, job)).Through(mds).Then(fn)
+	// run task through middleware
+	passable := task.NewPassable(t, job)
+	w.pl.Send(passable).Through(mds).Then(fn)
 	return
 }
 
