@@ -24,7 +24,7 @@ func TestClient(t *testing.T) {
 	})
 	c.AddRedisConnect("test", conn)
 
-	err = NewTask().Dispatch([]byte("test payload"), task.WithDelay(10))
+	err = NewTask(log).Dispatch([]byte("test payload"), task.WithDelay(10))
 	if err != nil {
 		t.Error(err)
 		return
@@ -47,7 +47,7 @@ func TestDispatch(t *testing.T) {
 		PoolSize: 1,
 	})
 	c.AddRedisConnect("test", conn)
-	err = c.Dispatch(NewTask(), []byte("test"))
+	err = c.Dispatch(NewTask(log), []byte("test"))
 	if err != nil {
 		t.Error(err)
 		return

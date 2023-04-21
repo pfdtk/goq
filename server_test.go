@@ -3,6 +3,7 @@ package goq
 import (
 	"context"
 	"github.com/pfdtk/goq/connect"
+	"github.com/pfdtk/goq/logger"
 	"github.com/pfdtk/goq/pipeline"
 	"github.com/pfdtk/goq/queue"
 	"github.com/pfdtk/goq/task"
@@ -13,9 +14,10 @@ import (
 
 type TestTask struct {
 	task.BaseTask
+	logger logger.Logger
 }
 
-func NewTask() *TestTask {
+func NewTask(logger logger.Logger) *TestTask {
 	option := &task.Option{
 		Name:      "test",
 		OnConnect: "test",
@@ -27,22 +29,37 @@ func NewTask() *TestTask {
 		Timeout:   11,
 	}
 	return &TestTask{
-		task.BaseTask{Option: option},
+		BaseTask: task.BaseTask{Option: option},
+		logger:   logger,
 	}
 }
 
-func (t *TestTask) Run(_ context.Context, _ *task.Job) (any, error) {
+func (t *TestTask) Run(_ context.Context, j *task.Job) (any, error) {
 	time.Sleep(2 * time.Second)
+	t.logger.Info(string(j.RawMessage().Payload))
 	return "test", nil
 }
 
 func (t *TestTask) BeforeMiddleware() []task.Middleware {
 	var mds = []task.Middleware{pipeline.HandlerFunc(func(p any, next pipeline.Next) any {
-		println("before middleware 1, can run: true")
+		t.logger.Info("before middleware 1, can run: true")
 		return next(p)
 	}), pipeline.HandlerFunc(func(p any, next pipeline.Next) any {
-		println("before middleware 2, can run: true")
+		t.logger.Info("before middleware 2, can run: true")
 		return next(p)
+	})}
+	return mds
+}
+
+func (t *TestTask) ProcessMiddleware() []task.Middleware {
+	var mds = []task.Middleware{pipeline.HandlerFunc(func(p any, next pipeline.Next) any {
+		t.logger.Info("process middleware 1")
+		return next(p)
+	}), pipeline.HandlerFunc(func(p any, next pipeline.Next) any {
+		t.logger.Info("process middleware 2")
+		r := next(p)
+		t.logger.Info("process middleware 2: after")
+		return r
 	})}
 	return mds
 }
@@ -67,8 +84,8 @@ func TestServer_Start(t *testing.T) {
 		PoolSize: 1,
 	})
 	server.AddRedisConnect("test", conn)
-	server.RegisterTask(NewTask())
-	server.RegisterCronTask("* * * * *", NewTask())
+	server.RegisterTask(NewTask(log))
+	server.RegisterCronTask("* * * * *", NewTask(log))
 	err = server.Start(context.Background())
 	if err != nil {
 		t.Error(err)

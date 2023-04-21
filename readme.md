@@ -6,9 +6,9 @@
 - job backoff retry
 - job execute timeout notice
 - job recover through ack feature
-- max worker of each task [todo]
 - scheduler task
 - task middleware
+- max worker of each task [todo]
 - job unique with time ttl [todo]
 - prometheus [todo]
 - cli inspect [todo]
