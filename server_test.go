@@ -40,7 +40,7 @@ func (t *TestTask) Run(_ context.Context, j *task.Job) (any, error) {
 	return "test", nil
 }
 
-func (t *TestTask) BeforeMiddleware() []task.Middleware {
+func (t *TestTask) Beforeware() []task.Middleware {
 	var mds = []task.Middleware{pipeline.HandlerFunc(func(p any, next pipeline.Next) any {
 		t.logger.Info("before middleware 1, can run: true")
 		return next(p)
@@ -51,7 +51,7 @@ func (t *TestTask) BeforeMiddleware() []task.Middleware {
 	return mds
 }
 
-func (t *TestTask) ProcessMiddleware() []task.Middleware {
+func (t *TestTask) Processware() []task.Middleware {
 	var mds = []task.Middleware{pipeline.HandlerFunc(func(p any, next pipeline.Next) any {
 		t.logger.Info("process middleware 1")
 		return next(p)
