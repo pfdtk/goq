@@ -1,16 +1,8 @@
 package pipeline
 
-type Next func(passable any) any
+type Next func(p any) any
 
-type Handler interface {
-	Handle(passable any, next Next) any
-}
-
-type HandlerFunc func(p any, next Next) any
-
-func (f HandlerFunc) Handle(p any, next Next) any {
-	return f(p, next)
-}
+type Handler func(p any, next func(p any) any) any
 
 type Pipeline struct {
 	handler  []Handler
@@ -21,8 +13,8 @@ func NewPipeline() *Pipeline {
 	return &Pipeline{}
 }
 
-func (m *Pipeline) Send(passable any) *Pipeline {
-	m.passable = passable
+func (m *Pipeline) Send(p any) *Pipeline {
+	m.passable = p
 	return m
 }
 
@@ -37,11 +29,11 @@ func (m *Pipeline) Then(handle Next) any {
 }
 
 func (m *Pipeline) resolve(handle Next) Next {
-	var fn = func(passable any) any { return handle(passable) }
+	var fn = func(p any) any { return handle(p) }
 	for i := len(m.handler) - 1; i >= 0; i-- {
-		fn = func(carry Next, item Handler) Next {
-			return func(passable any) any {
-				return item.Handle(passable, carry)
+		fn = func(carry Next, h Handler) Next {
+			return func(p any) any {
+				return h(p, carry)
 			}
 		}(fn, m.handler[i])
 	}

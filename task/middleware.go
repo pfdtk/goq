@@ -2,9 +2,7 @@ package task
 
 import "github.com/pfdtk/goq/pipeline"
 
-type Middleware interface {
-	pipeline.Handler
-}
+type Middleware pipeline.Handler
 
 type RunPassable struct {
 	task Task

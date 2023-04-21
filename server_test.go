@@ -4,7 +4,6 @@ import (
 	"context"
 	"github.com/pfdtk/goq/connect"
 	"github.com/pfdtk/goq/logger"
-	"github.com/pfdtk/goq/pipeline"
 	"github.com/pfdtk/goq/queue"
 	"github.com/pfdtk/goq/task"
 	"go.uber.org/zap"
@@ -41,26 +40,26 @@ func (t *TestTask) Run(_ context.Context, j *task.Job) (any, error) {
 }
 
 func (t *TestTask) Beforeware() []task.Middleware {
-	var mds = []task.Middleware{pipeline.HandlerFunc(func(p any, next pipeline.Next) any {
+	var mds = []task.Middleware{func(p any, next func(p any) any) any {
 		t.logger.Info("before middleware 1, can run: true")
 		return next(p)
-	}), pipeline.HandlerFunc(func(p any, next pipeline.Next) any {
+	}, func(p any, next func(p any) any) any {
 		t.logger.Info("before middleware 2, can run: true")
 		return next(p)
-	})}
+	}}
 	return mds
 }
 
 func (t *TestTask) Processware() []task.Middleware {
-	var mds = []task.Middleware{pipeline.HandlerFunc(func(p any, next pipeline.Next) any {
+	var mds = []task.Middleware{func(p any, next func(p any) any) any {
 		t.logger.Info("process middleware 1")
 		return next(p)
-	}), pipeline.HandlerFunc(func(p any, next pipeline.Next) any {
+	}, func(p any, next func(p any) any) any {
 		t.logger.Info("process middleware 2")
 		r := next(p)
 		t.logger.Info("process middleware 2: after")
 		return r
-	})}
+	}}
 	return mds
 }
 
