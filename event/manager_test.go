@@ -25,7 +25,7 @@ func TestManager_Listen(t *testing.T) {
 func TestManager_Dispatch(t *testing.T) {
 	e := &TestEvent{}
 	Listen(e, NewTestHandle())
-	InternalListen(e, func(e Event) bool {
+	IListens([]Event{e}, func(e Event) bool {
 		println(e.Name())
 		return true
 	})

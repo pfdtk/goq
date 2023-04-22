@@ -2,13 +2,12 @@
 
 - job ack
 - queue priority
-- job retry
 - job backoff retry
-- job execute timeout notice
-- job recover through ack feature
-- scheduler task
-- task middleware
-- max worker of each task [todo]
+- job execute timeout notice by event dispatch
+- job recover by ack feature
+- task scheduler
+- task run through middleware
+- max worker of each task control by middleware
 - job unique with time ttl [todo]
 - prometheus [todo]
 - cli inspect [todo]

@@ -219,7 +219,9 @@ func (w *worker) getJob(q queue.Queue, qn string) (*task.Job, error) {
 func (w *worker) handleJobDone(_ task.Task, job *task.Job) {
 	w.logger.Infof("job processed, id=%s, name=%s", job.Id(), job.Name())
 	err := job.Delete(w.ctx)
-	event.Dispatch(NewWorkErrorEvent(err))
+	if err != nil {
+		event.Dispatch(NewWorkErrorEvent(err))
+	}
 }
 
 func (w *worker) handleJobError(t task.Task, job *task.Job, err error) {

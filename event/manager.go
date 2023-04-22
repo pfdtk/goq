@@ -30,9 +30,23 @@ func Listen(e Event, h Handler) {
 	manager.Listen(e, h, false)
 }
 
-// InternalListen Do not use this function!
-func InternalListen(e Event, h Handler) {
+func Listens(events []Event, h Handler) {
+	for i := range events {
+		e := events[i]
+		manager.Listen(e, h, false)
+	}
+}
+
+// IListen Do not use this function!, this function is use for internal
+func IListen(e Event, h Handler) {
 	manager.Listen(e, h, true)
+}
+
+func IListens(events []Event, h Handler) {
+	for i := range events {
+		e := events[i]
+		manager.Listen(e, h, true)
+	}
 }
 
 func (m *Manager) Listen(e Event, h Handler, internal bool) {
