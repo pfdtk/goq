@@ -40,7 +40,8 @@ func newScheduler(ctx context.Context, s *Server) *scheduler {
 }
 
 func (s *scheduler) startScheduler() error {
-	for _, t := range s.tasks {
+	for i := range s.tasks {
+		t := s.tasks[i]
 		err := s.register(t.spec, t.task)
 		if err != nil {
 			return err

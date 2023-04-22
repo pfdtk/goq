@@ -76,8 +76,8 @@ func (m *Manager) Dispatch(e Event) {
 	// internal event first
 	copy(mergedHandlers, internalHandlers)
 	copy(mergedHandlers[len(internalHandlers):], handlers)
-	for _, h := range mergedHandlers {
-		ct := h(e)
+	for i := range mergedHandlers {
+		ct := mergedHandlers[i](e)
 		if ct == false {
 			break
 		}

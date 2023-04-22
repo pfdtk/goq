@@ -43,9 +43,9 @@ func newMigrate(ctx context.Context, s *Server) *migrate {
 func (m *migrate) startMigrate() error {
 	redisTask := utils.GetRedisTask(m.tasks)
 	if len(redisTask) != 0 {
-		for _, t := range redisTask {
-			m.migrateRedisTasks(t, MigrateAck)
-			m.migrateRedisTasks(t, MigrateDelay)
+		for i := range redisTask {
+			m.migrateRedisTasks(redisTask[i], MigrateAck)
+			m.migrateRedisTasks(redisTask[i], MigrateDelay)
 		}
 	}
 	return nil

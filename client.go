@@ -49,8 +49,8 @@ func DispatchContext(
 		Retries: t.Retries(),
 	}
 	opt := &task.DispatchOpt{}
-	for _, fn := range opts {
-		fn(opt)
+	for i := range opts {
+		opts[i](opt)
 	}
 	if opt.Delay == 0 {
 		err = q.Push(ctx, message)

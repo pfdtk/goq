@@ -183,7 +183,8 @@ func (w *worker) performThroughMiddleware(t task.Task, job *task.Job) (res any, 
 }
 
 func (w *worker) getNextJob() (*task.Job, error) {
-	for _, t := range w.sortedTasks {
+	for i := range w.sortedTasks {
+		t := w.sortedTasks[i]
 		// check if task can pop message through middleware,
 		// and middleware handle should return a bool value
 		mds := task.CastMiddleware(t.Beforeware())
