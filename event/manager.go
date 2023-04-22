@@ -1,31 +1,53 @@
 package event
 
-import "sync"
+import (
+	"sync"
+)
 
 var manager = newManager()
 
+type Event interface {
+	Name() string
+}
+
+type Handler func(e Event) bool
+
 type Manager struct {
 	event map[string][]Handler
-	lock  sync.Mutex
+	// internalEvent internal event
+	internalEvent map[string][]Handler
+	lock          sync.Mutex
 }
 
 func newManager() *Manager {
 	return &Manager{
-		event: make(map[string][]Handler),
+		event:         make(map[string][]Handler),
+		internalEvent: make(map[string][]Handler),
 	}
 }
 
 func Listen(e Event, h Handler) {
-	manager.Listen(e, h)
+	manager.Listen(e, h, false)
 }
 
-func (m *Manager) Listen(e Event, h Handler) {
+// InternalListen Do not use this function!
+func InternalListen(e Event, h Handler) {
+	manager.Listen(e, h, true)
+}
+
+func (m *Manager) Listen(e Event, h Handler, internal bool) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	en := e.Name()
-	handles := m.event[en]
-	handles = append(handles, h)
-	m.event[en] = handles
+	if !internal {
+		handles := m.event[en]
+		handles = append(handles, h)
+		m.event[en] = handles
+	} else {
+		handles := m.internalEvent[en]
+		handles = append(handles, h)
+		m.internalEvent[en] = handles
+	}
 }
 
 func Dispatch(e Event) {
@@ -34,7 +56,13 @@ func Dispatch(e Event) {
 
 func (m *Manager) Dispatch(e Event) {
 	handlers := m.event[e.Name()]
-	for _, h := range handlers {
+	internalHandlers := m.internalEvent[e.Name()]
+	size := len(handlers) + len(internalHandlers)
+	mergedHandlers := make([]Handler, size)
+	// internal event first
+	copy(mergedHandlers, internalHandlers)
+	copy(mergedHandlers[len(internalHandlers):], handlers)
+	for _, h := range mergedHandlers {
 		ct := h(e)
 		if ct == false {
 			break
