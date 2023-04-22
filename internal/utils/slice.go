@@ -2,7 +2,11 @@ package utils
 
 import "github.com/pfdtk/goq/common"
 
-func InSlice[T common.Int | common.Uint | common.Float | string | bool](item T, items []T) bool {
+type InSliceT interface {
+	common.Int | common.Uint | common.Float | ~string | ~bool
+}
+
+func InSlice[T InSliceT](item T, items []T) bool {
 	for i := range items {
 		if items[i] == item {
 			return true
