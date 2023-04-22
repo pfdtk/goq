@@ -44,7 +44,7 @@ func TestDispatch(t *testing.T) {
 		Addr:     "127.0.0.1",
 		Port:     "6379",
 		DB:       1,
-		PoolSize: 1,
+		PoolSize: 2,
 	})
 	c.AddRedisConnect("test", conn)
 	err = c.Dispatch(NewTask(log), []byte("test"))

@@ -42,7 +42,7 @@ func (t *TestTask) Run(_ context.Context, j *task.Job) (any, error) {
 
 func (t *TestTask) Beforeware() []task.Middleware {
 	return []task.Middleware{
-		task.NewMaxWorkerControl("test", 1, 10),
+		task.NewMaxWorkerControl("test", t.GetName(), 1, 10),
 	}
 }
 
@@ -63,7 +63,7 @@ func TestServer_Start(t *testing.T) {
 	log := z.Sugar()
 	log.Info("xx")
 	server := NewServer(&ServerConfig{
-		MaxWorker: 2,
+		MaxWorker: 1,
 		logger:    log,
 	})
 	// connect
@@ -75,7 +75,7 @@ func TestServer_Start(t *testing.T) {
 	})
 	server.AddRedisConnect("test", conn)
 	server.RegisterTask(NewTask(log))
-	server.Listen(&task.MaxWorkerErrorEvent{}, func(e event.Event) bool {
+	server.Listen(&task.MaxWorkerEvent{}, func(e event.Event) bool {
 		es := e.Value().(error)
 		server.logger.Info(es.Error())
 		return true

@@ -185,16 +185,21 @@ func (w *worker) performThroughMiddleware(t task.Task, job *task.Job) (res any, 
 func (w *worker) getNextJob() (*task.Job, error) {
 	for i := range w.sortedTasks {
 		t := w.sortedTasks[i]
+		if t.Status() == task.Disable {
+			continue
+		}
+		// todo add task delay pop when this task has no message
 		// check if task can pop message through middleware,
 		// and middleware handle should return a bool value
 		mds := task.CastMiddleware(t.Beforeware())
 		passable := task.NewPopPassable()
-		skip := w.pl.Send(passable).Through(mds).Then(func(_ any) any {
+		res := w.pl.Send(passable).Through(mds).Then(func(_ any) any {
 			// pop by default
 			return true
 		})
-		canPop, ok := skip.(bool)
-		if t.Status() == task.Disable || !ok || !canPop {
+		canPop, ok := res.(bool)
+		if !ok || !canPop {
+			event.Dispatch(task.NewSkipPopEvent())
 			continue
 		}
 		q := qm.GetQueue(t.OnConnect(), t.QueueType())
