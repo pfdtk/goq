@@ -18,20 +18,11 @@ func NewMaxWorkerControl(conn string, name string, maxWorker int, timeout int) M
 		name = namePrefix + ":" + name
 		l := limiter.NewConcurrency(redis, name, maxWorker, timeout)
 		id := uuid.NewString()
-		token, err := l.Acquire(id)
+		_, err := l.Acquire(id)
 		if err != nil {
 			event.Dispatch(NewMaxWorkerErrorEvent(MaxWorkerError))
 			return false
 		}
-		events := []event.Event{
-			&SkipPopEvent{},
-			&JobAfterRunEvent{},
-			&JobErrorEvent{},
-		}
-		event.IListens(events, func(e event.Event) bool {
-			l.Release(token, id)
-			return true
-		})
 		return next(p)
 	}
 }

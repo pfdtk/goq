@@ -22,7 +22,9 @@ var (
 type worker struct {
 	tasks       *sync.Map
 	sortedTasks []task.Task
+	delayPop    map[string]time.Time
 	wg          *sync.WaitGroup
+	lock        sync.Mutex
 	stopRun     chan struct{}
 	maxWorker   chan struct{}
 	jobChannel  chan *task.Job
@@ -41,6 +43,7 @@ func newWorker(ctx context.Context, s *Server) *worker {
 		ctx:        ctx,
 		logger:     s.logger,
 		pl:         pipeline.NewPipeline(),
+		delayPop:   make(map[string]time.Time),
 	}
 	return w
 }
@@ -184,21 +187,7 @@ func (w *worker) performThroughMiddleware(t task.Task, job *task.Job) (res any, 
 func (w *worker) getNextJob() (*task.Job, error) {
 	for i := range w.sortedTasks {
 		t := w.sortedTasks[i]
-		if t.Status() == task.Disable {
-			continue
-		}
-		// todo add task delay pop when this task has no message
-		// check if task can pop message through middleware,
-		// and middleware handle should return a bool value
-		mds := task.CastMiddleware(t.Beforeware())
-		passable := task.NewPopPassable()
-		res := w.pl.Send(passable).Through(mds).Then(func(_ any) any {
-			// pop by default
-			return true
-		})
-		canPop, ok := res.(bool)
-		if !ok || !canPop {
-			event.Dispatch(task.NewSkipPopEvent())
+		if !w.canTaskPop(t) {
 			continue
 		}
 		q := qm.GetQueue(t.OnConnect(), t.QueueType())
@@ -209,8 +198,43 @@ func (w *worker) getNextJob() (*task.Job, error) {
 		if err == nil {
 			return j, nil
 		}
+		w.delayPopTask(t)
 	}
 	return nil, JobEmptyError
+}
+
+func (w *worker) canTaskPop(t task.Task) bool {
+	if t.Status() == task.Disable {
+		return false
+	}
+	delayPopAt, ok := w.delayPop[t.GetName()]
+	if ok && time.Now().Before(delayPopAt) {
+		return false
+	}
+	// check if task can pop message through middleware,
+	// and middleware handle should return a bool value
+	mds := task.CastMiddleware(t.Beforeware())
+	passable := task.NewPopPassable()
+	res := w.pl.Send(passable).Through(mds).Then(func(_ any) any {
+		// pop by default
+		return true
+	})
+	canPop, ok := res.(bool)
+	if !ok || !canPop {
+		w.delayPopTask(t)
+		event.Dispatch(task.NewSkipPopEvent())
+		return false
+	}
+	return true
+}
+
+// delayPopTask if task can not pop message or no message exist in queue, wait seconds before next pop
+func (w *worker) delayPopTask(task task.Task) {
+	name := task.GetName()
+	w.logger.Infof("task delay pop, name=%s", name)
+	w.lock.Lock()
+	defer w.lock.Unlock()
+	w.delayPop[name] = time.Now().Add(3 * time.Second)
 }
 
 func (w *worker) getJob(q queue.Queue, qn string) (*task.Job, error) {
