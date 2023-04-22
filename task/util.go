@@ -1,16 +1,15 @@
-package utils
+package task
 
 import (
 	"github.com/pfdtk/goq/queue"
-	"github.com/pfdtk/goq/task"
 	"sort"
 	"sync"
 )
 
-func SortTask(tasks *sync.Map) []task.Task {
-	var pairs []task.Task
+func SortTask(tasks *sync.Map) []Task {
+	var pairs []Task
 	tasks.Range(func(key, value any) bool {
-		pairs = append(pairs, value.(task.Task))
+		pairs = append(pairs, value.(Task))
 		return true
 	})
 	sort.Slice(pairs, func(i, j int) bool {
@@ -19,10 +18,10 @@ func SortTask(tasks *sync.Map) []task.Task {
 	return pairs
 }
 
-func GetRedisTask(tasks *sync.Map) []task.Task {
-	var pairs []task.Task
+func GetRedisTask(tasks *sync.Map) []Task {
+	var pairs []Task
 	tasks.Range(func(key, value any) bool {
-		v := value.(task.Task)
+		v := value.(Task)
 		if v.QueueType() != queue.Redis {
 			return true
 		}

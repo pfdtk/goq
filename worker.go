@@ -5,7 +5,6 @@ import (
 	"errors"
 	"github.com/pfdtk/goq/event"
 	qm "github.com/pfdtk/goq/internal/queue"
-	"github.com/pfdtk/goq/internal/utils"
 	"github.com/pfdtk/goq/logger"
 	"github.com/pfdtk/goq/pipeline"
 	"github.com/pfdtk/goq/queue"
@@ -47,7 +46,7 @@ func newWorker(ctx context.Context, s *Server) *worker {
 }
 
 func (w *worker) startConsuming() error {
-	w.sortedTasks = utils.SortTask(w.tasks)
+	w.sortedTasks = task.SortTask(w.tasks)
 	w.startPop()
 	w.startWork()
 	return nil

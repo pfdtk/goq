@@ -4,7 +4,6 @@ import (
 	"context"
 	"github.com/pfdtk/goq/connect"
 	rdq "github.com/pfdtk/goq/internal/queue/redis"
-	"github.com/pfdtk/goq/internal/utils"
 	"github.com/pfdtk/goq/logger"
 	"github.com/pfdtk/goq/task"
 	"sync"
@@ -41,7 +40,7 @@ func newMigrate(ctx context.Context, s *Server) *migrate {
 }
 
 func (m *migrate) startMigrate() error {
-	redisTask := utils.GetRedisTask(m.tasks)
+	redisTask := task.GetRedisTask(m.tasks)
 	if len(redisTask) != 0 {
 		for i := range redisTask {
 			m.migrateRedisTasks(redisTask[i], MigrateAck)

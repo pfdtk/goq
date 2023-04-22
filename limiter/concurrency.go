@@ -78,5 +78,6 @@ func (c *Concurrency) Release(key string, id string) bool {
 	keys := []string{key}
 	argv := []any{id}
 	_, err := releaseScript.Run(context.Background(), c.redis, keys, argv...).Result()
-	return err == nil
+	success := err == nil
+	return success
 }
