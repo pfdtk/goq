@@ -8,6 +8,7 @@
 - task scheduler
 - task run through middleware
 - max worker of each task control by middleware
+- rate limit control
 - job unique with time ttl [todo]
 - prometheus [todo]
 - cli inspect [todo]

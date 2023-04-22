@@ -2,6 +2,7 @@ package goq
 
 import (
 	"context"
+	"github.com/go-redis/redis_rate/v10"
 	"github.com/pfdtk/goq/connect"
 	"github.com/pfdtk/goq/logger"
 	"github.com/pfdtk/goq/queue"
@@ -41,7 +42,8 @@ func (t *TestTask) Run(_ context.Context, j *task.Job) (any, error) {
 
 func (t *TestTask) Beforeware() []task.Middleware {
 	return []task.Middleware{
-		task.NewMaxWorkerControl("test", t.GetName(), 1, 10),
+		//task.NewMaxWorkerLimiter("test", t.GetName(), 1, 10),
+		task.NewLeakyBucketLimiter("test", t.GetName(), redis_rate.PerMinute(2)),
 	}
 }
 
