@@ -28,9 +28,10 @@ type Server struct {
 }
 
 func NewServer(config *ServerConfig) *Server {
+	logger.SetLogger(config.logger)
 	return &Server{
 		maxWorker: config.MaxWorker,
-		logger:    config.logger,
+		logger:    logger.GetLogger(),
 	}
 }
 

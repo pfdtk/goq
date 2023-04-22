@@ -14,10 +14,17 @@ func NewRunPassable(t Task, j *Job) *RunPassable {
 }
 
 type PopPassable struct {
+	Callback func()
 }
 
 func NewPopPassable() *PopPassable {
 	return &PopPassable{}
+}
+
+func (p *PopPassable) ExecCallback() {
+	if p.Callback != nil {
+		p.Callback()
+	}
 }
 
 func CastMiddleware(m []Middleware) []pipeline.Handler {

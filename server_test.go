@@ -3,7 +3,6 @@ package goq
 import (
 	"context"
 	"github.com/pfdtk/goq/connect"
-	"github.com/pfdtk/goq/event"
 	"github.com/pfdtk/goq/logger"
 	"github.com/pfdtk/goq/queue"
 	"github.com/pfdtk/goq/task"
@@ -63,7 +62,7 @@ func TestServer_Start(t *testing.T) {
 	log := z.Sugar()
 	log.Info("xx")
 	server := NewServer(&ServerConfig{
-		MaxWorker: 1,
+		MaxWorker: 2,
 		logger:    log,
 	})
 	// connect
@@ -75,11 +74,6 @@ func TestServer_Start(t *testing.T) {
 	})
 	server.AddRedisConnect("test", conn)
 	server.RegisterTask(NewTask(log))
-	server.Listen(&task.MaxWorkerEvent{}, func(e event.Event) bool {
-		es := e.Value().(error)
-		server.logger.Info(es.Error())
-		return true
-	})
 	//server.RegisterCronTask("* * * * *", NewTask(log))
 	err = server.Start(context.Background())
 	if err != nil {

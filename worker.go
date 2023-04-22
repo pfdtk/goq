@@ -94,7 +94,7 @@ func (w *worker) pop() {
 		<-w.maxWorker
 		return
 	}
-	w.logger.Infof("job received, id=%s, name=%s", j.Id(), j.Name())
+	w.logger.Infof("job received, name=%s, id=%s", j.Name(), j.Id())
 	w.jobChannel <- j
 }
 
@@ -111,7 +111,7 @@ func (w *worker) startWork() {
 				if !ok {
 					return
 				}
-				w.logger.Infof("job processing, id=%s, name=%s", j.Id(), j.Name())
+				w.logger.Infof("job processing, name=%s, id=%s", j.Name(), j.Id())
 				go w.runJob(j)
 			}
 		}
@@ -137,7 +137,8 @@ func (w *worker) runJob(job *task.Job) {
 	case <-prh:
 		return
 	case <-ctx.Done():
-		w.logger.Infof("job timeout, id=%s, name=%s", job.Id(), job.Name())
+		w.logger.Infof("job exec timeout, id=%s, name=%s", job.Id(), job.Name())
+		job.Fail()
 		w.handleError(JobExecTimeoutError)
 		return
 	}
@@ -187,23 +188,29 @@ func (w *worker) performThroughMiddleware(t task.Task, job *task.Job) (res any, 
 func (w *worker) getNextJob() (*task.Job, error) {
 	for i := range w.sortedTasks {
 		t := w.sortedTasks[i]
-		if !w.canTaskPop(t) {
+		pp := task.NewPopPassable()
+		if !w.canTaskPop(t, pp) {
 			continue
 		}
 		q := qm.GetQueue(t.OnConnect(), t.QueueType())
 		if q == nil {
 			continue
 		}
+		w.logger.Infof("start to get job, name=%s", t.GetName())
 		j, err := w.getJob(q, t.OnQueue())
 		if err == nil {
+			j.WhenSuccess(pp.Callback)
+			j.WhenFail(pp.Callback)
 			return j, nil
 		}
+		w.logger.Infof("no job for process, name=%s", t.GetName())
+		pp.ExecCallback()
 		w.delayPopTask(t)
 	}
 	return nil, JobEmptyError
 }
 
-func (w *worker) canTaskPop(t task.Task) bool {
+func (w *worker) canTaskPop(t task.Task, passable *task.PopPassable) bool {
 	if t.Status() == task.Disable {
 		return false
 	}
@@ -214,7 +221,6 @@ func (w *worker) canTaskPop(t task.Task) bool {
 	// check if task can pop message through middleware,
 	// and middleware handle should return a bool value
 	mds := task.CastMiddleware(t.Beforeware())
-	passable := task.NewPopPassable()
 	res := w.pl.Send(passable).Through(mds).Then(func(_ any) any {
 		// pop by default
 		return true
@@ -222,7 +228,6 @@ func (w *worker) canTaskPop(t task.Task) bool {
 	canPop, ok := res.(bool)
 	if !ok || !canPop {
 		w.delayPopTask(t)
-		event.Dispatch(task.NewSkipPopEvent())
 		return false
 	}
 	return true
@@ -231,7 +236,7 @@ func (w *worker) canTaskPop(t task.Task) bool {
 // delayPopTask if task can not pop message or no message exist in queue, wait seconds before next pop
 func (w *worker) delayPopTask(task task.Task) {
 	name := task.GetName()
-	w.logger.Infof("task delay pop, name=%s", name)
+	w.logger.Infof("task pop delay 3 second, name=%s", name)
 	w.lock.Lock()
 	defer w.lock.Unlock()
 	w.delayPop[name] = time.Now().Add(3 * time.Second)
@@ -246,7 +251,9 @@ func (w *worker) getJob(q queue.Queue, qn string) (*task.Job, error) {
 }
 
 func (w *worker) handleJobDone(_ task.Task, job *task.Job) {
-	w.logger.Infof("job processed, id=%s, name=%s", job.Id(), job.Name())
+	w.logger.Infof("job processed, name=%s, id=%s", job.Name(), job.Id())
+	// call job success callback func
+	job.Success()
 	err := job.Delete(w.ctx)
 	if err != nil {
 		event.Dispatch(NewWorkErrorEvent(err))
@@ -254,10 +261,12 @@ func (w *worker) handleJobDone(_ task.Task, job *task.Job) {
 }
 
 func (w *worker) handleJobError(t task.Task, job *task.Job, err error) {
-	w.logger.Infof("job fail, id=%s, name=%s", job.Id(), job.Name())
+	w.logger.Infof("job fail, name=%s, id=%s", job.Name(), job.Id())
+	// call job fail callback func
+	job.Fail()
 	var e error
 	if !job.IsReachMacAttempts() {
-		w.logger.Infof("job retry, id=%s, name=%s", job.Id(), job.Name())
+		w.logger.Infof("job retry, name=%s, id=%s", job.Name(), job.Id())
 		e = w.retry(t, job)
 	} else {
 		e = job.Delete(w.ctx)

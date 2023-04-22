@@ -3,6 +3,7 @@ package task
 import (
 	"context"
 	"github.com/pfdtk/goq/queue"
+	"sync"
 	"time"
 )
 
@@ -25,7 +26,13 @@ type Job struct {
 	attempts uint
 	// rawMessage raw message
 	rawMessage *queue.Message
-	queue      queue.Queue
+	// queue client
+	queue queue.Queue
+	// lock
+	lock sync.Mutex
+	// callback
+	errFunc     []func()
+	successFunc []func()
 }
 
 func NewJob(q queue.Queue, msg *queue.Message) *Job {
@@ -93,4 +100,34 @@ func (j *Job) Release(ctx context.Context, backoff uint) (err error) {
 // Delete the job from the queue
 func (j *Job) Delete(ctx context.Context) error {
 	return j.queue.Delete(ctx, j.QueueName(), j.RawMessage())
+}
+
+func (j *Job) WhenSuccess(fn func()) {
+	if fn == nil {
+		return
+	}
+	j.lock.Lock()
+	defer j.lock.Unlock()
+	j.successFunc = append(j.successFunc, fn)
+}
+
+func (j *Job) WhenFail(fn func()) {
+	if fn == nil {
+		return
+	}
+	j.lock.Lock()
+	defer j.lock.Unlock()
+	j.errFunc = append(j.errFunc, fn)
+}
+
+func (j *Job) Success() {
+	for i := range j.successFunc {
+		j.successFunc[i]()
+	}
+}
+
+func (j *Job) Fail() {
+	for i := range j.errFunc {
+		j.errFunc[i]()
+	}
 }
