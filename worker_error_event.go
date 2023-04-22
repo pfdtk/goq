@@ -11,3 +11,7 @@ func NewWorkErrorEvent(e error) *WorkErrorEvent {
 func (j *WorkErrorEvent) Name() string {
 	return "JobErrorEvent"
 }
+
+func (j *WorkErrorEvent) Value() any {
+	return j.err
+}

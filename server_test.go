@@ -3,6 +3,7 @@ package goq
 import (
 	"context"
 	"github.com/pfdtk/goq/connect"
+	"github.com/pfdtk/goq/event"
 	"github.com/pfdtk/goq/logger"
 	"github.com/pfdtk/goq/queue"
 	"github.com/pfdtk/goq/task"
@@ -34,31 +35,21 @@ func NewTask(logger logger.Logger) *TestTask {
 }
 
 func (t *TestTask) Run(_ context.Context, j *task.Job) (any, error) {
-	time.Sleep(2 * time.Second)
+	time.Sleep(8 * time.Second)
 	t.logger.Info(string(j.RawMessage().Payload))
 	return "test", nil
 }
 
 func (t *TestTask) Beforeware() []task.Middleware {
-	var mds = []task.Middleware{func(p any, next func(p any) any) any {
-		t.logger.Info("before middleware 1, can run: true")
-		return next(p)
-	}, func(p any, next func(p any) any) any {
-		t.logger.Info("before middleware 2, can run: true")
-		return next(p)
-	}}
-	return mds
+	return []task.Middleware{
+		task.NewMaxWorkerControl("test", 1, 10),
+	}
 }
 
 func (t *TestTask) Processware() []task.Middleware {
 	var mds = []task.Middleware{func(p any, next func(p any) any) any {
-		t.logger.Info("process middleware 1")
+		t.logger.Info("process middleware touch")
 		return next(p)
-	}, func(p any, next func(p any) any) any {
-		t.logger.Info("process middleware 2")
-		r := next(p)
-		t.logger.Info("process middleware 2: after")
-		return r
 	}}
 	return mds
 }
@@ -72,7 +63,7 @@ func TestServer_Start(t *testing.T) {
 	log := z.Sugar()
 	log.Info("xx")
 	server := NewServer(&ServerConfig{
-		MaxWorker: 1,
+		MaxWorker: 2,
 		logger:    log,
 	})
 	// connect
@@ -84,7 +75,12 @@ func TestServer_Start(t *testing.T) {
 	})
 	server.AddRedisConnect("test", conn)
 	server.RegisterTask(NewTask(log))
-	server.RegisterCronTask("* * * * *", NewTask(log))
+	server.Listen(&task.MaxWorkerErrorEvent{}, func(e event.Event) bool {
+		es := e.Value().(error)
+		server.logger.Info(es.Error())
+		return true
+	})
+	//server.RegisterCronTask("* * * * *", NewTask(log))
 	err = server.Start(context.Background())
 	if err != nil {
 		t.Error(err)

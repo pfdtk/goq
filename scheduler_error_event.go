@@ -11,3 +11,7 @@ func NewSchedulerErrorEvent(e error) *SchedulerErrorEvent {
 func (j *SchedulerErrorEvent) Name() string {
 	return "SchedulerErrorEvent"
 }
+
+func (j *SchedulerErrorEvent) Value() any {
+	return j.err
+}

@@ -1,6 +1,7 @@
 package task
 
 import (
+	"errors"
 	"github.com/google/uuid"
 	"github.com/pfdtk/goq/connect"
 	"github.com/pfdtk/goq/event"
@@ -8,6 +9,7 @@ import (
 )
 
 var name = "goq-task-max-worker-control"
+var MaxWorkerError = errors.New("max worker error")
 
 // NewMaxWorkerControl you must add a redis connect to server first
 func NewMaxWorkerControl(conn string, maxWorker int, timeout int) Middleware {
@@ -17,6 +19,7 @@ func NewMaxWorkerControl(conn string, maxWorker int, timeout int) Middleware {
 		id := uuid.NewString()
 		token, err := l.Acquire(id)
 		if err != nil {
+			event.Dispatch(NewMaxWorkerErrorEvent(MaxWorkerError))
 			return false
 		}
 		events := []event.Event{

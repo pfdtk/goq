@@ -11,6 +11,10 @@ func (t *TestEvent) Name() string {
 	return "test"
 }
 
+func (t *TestEvent) Value() any {
+	return nil
+}
+
 func NewTestHandle() Handler {
 	return func(e Event) bool {
 		println(e.Name())

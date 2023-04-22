@@ -8,6 +8,7 @@ var manager = newManager()
 
 type Event interface {
 	Name() string
+	Value() any
 }
 
 type Handler func(e Event) bool
