@@ -3,6 +3,7 @@ package goq
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/pfdtk/goq/event"
 	qm "github.com/pfdtk/goq/internal/queue"
 	"github.com/pfdtk/goq/logger"
@@ -15,8 +16,7 @@ import (
 )
 
 var (
-	JobEmptyError       = errors.New("no jobs are ready for processing")
-	JobExecTimeoutError = errors.New("job exec timeout")
+	JobEmptyError = errors.New("no jobs are ready for processing")
 )
 
 type worker struct {
@@ -137,9 +137,7 @@ func (w *worker) runJob(job *task.Job) {
 	case <-prh:
 		return
 	case <-ctx.Done():
-		w.logger.Infof("job exec timeout, id=%s, name=%s", job.Id(), job.Name())
-		job.Fail()
-		w.handleError(JobExecTimeoutError)
+		w.handleJobTimeoutError(job)
 		return
 	}
 }
@@ -149,7 +147,7 @@ func (w *worker) perform(job *task.Job) (res any, err error) {
 	// recover err from tasks, so that program will not exit
 	defer func() {
 		if x := recover(); x != nil {
-			err = errors.New(string(debug.Stack()))
+			err = errors.New(fmt.Sprintf("Panic Error: %+v;\nStack: %s", x, string(debug.Stack())))
 			if t != nil {
 				w.handleJobError(t, job, err)
 			} else {
@@ -194,13 +192,13 @@ func (w *worker) getNextJob() (*task.Job, error) {
 		}
 		q := qm.GetQueue(t.OnConnect(), t.QueueType())
 		if q == nil {
+			w.logger.Errorf("queue not found, name=%s, conn=%s", t.OnQueue(), t.OnConnect())
 			continue
 		}
 		w.logger.Infof("start to get job, name=%s", t.GetName())
 		j, err := w.getJob(q, t.OnQueue())
 		if err == nil {
-			j.WhenSuccess(pp.Callback)
-			j.WhenFail(pp.Callback)
+			j.Then(pp.Callback)
 			return j, nil
 		}
 		w.logger.Infof("no job for process, name=%s", t.GetName())
@@ -210,7 +208,7 @@ func (w *worker) getNextJob() (*task.Job, error) {
 	return nil, JobEmptyError
 }
 
-func (w *worker) canTaskPop(t task.Task, passable *task.PopPassable) bool {
+func (w *worker) canTaskPop(t task.Task, pp *task.PopPassable) bool {
 	if t.Status() == task.Disable {
 		return false
 	}
@@ -221,8 +219,7 @@ func (w *worker) canTaskPop(t task.Task, passable *task.PopPassable) bool {
 	// check if task can pop message through middleware,
 	// and middleware handle should return a bool value
 	mds := task.CastMiddleware(t.Beforeware())
-	res := w.pl.Send(passable).Through(mds).Then(func(_ any) any {
-		// pop by default
+	res := w.pl.Send(pp).Through(mds).Then(func(_ any) any {
 		return true
 	})
 	canPop, ok := res.(bool)
@@ -236,7 +233,7 @@ func (w *worker) canTaskPop(t task.Task, passable *task.PopPassable) bool {
 // delayPopTask if task can not pop message or no message exist in queue, wait seconds before next pop
 func (w *worker) delayPopTask(task task.Task) {
 	name := task.GetName()
-	w.logger.Infof("task pop delay 3 second, name=%s", name)
+	w.logger.Infof("wait for 3 second before next pop, name=%s", name)
 	w.lock.Lock()
 	defer w.lock.Unlock()
 	w.delayPop[name] = time.Now().Add(3 * time.Second)
@@ -275,6 +272,12 @@ func (w *worker) handleJobError(t task.Task, job *task.Job, err error) {
 		err = errors.Join(err, e)
 	}
 	event.Dispatch(task.NewJobErrorEvent(t, job, err))
+}
+
+func (w *worker) handleJobTimeoutError(job *task.Job) {
+	w.logger.Infof("job exec timeout, id=%s, name=%s", job.Id(), job.Name())
+	job.Fail()
+	event.Dispatch(task.NewJobExecTimeoutEvent(job))
 }
 
 func (w *worker) handleError(err error) {

@@ -7,10 +7,6 @@ import (
 	"github.com/pfdtk/goq/logger"
 )
 
-var namePrefix = "goq-task-max-worker-control"
-
-//var MaxWorkerError = errors.New("max worker error")
-
 // NewMaxWorkerLimiter you must add a redis connect to server first
 func NewMaxWorkerLimiter(conn string, name string, maxWorker int, timeout int) Middleware {
 	return func(p any, next func(p any) any) any {
@@ -21,7 +17,7 @@ func NewMaxWorkerLimiter(conn string, name string, maxWorker int, timeout int) M
 		}
 		logger.GetLogger().Infof("try to get max worker limiter lock, task=%s", name)
 		redis := connect.GetRedis(conn)
-		lockName := namePrefix + ":" + name
+		lockName := "goq-task-max-worker-limiter:" + name
 		l := limiter.NewConcurrency(redis, lockName, maxWorker, timeout)
 		id := uuid.NewString()
 		token, err := l.Acquire(id)

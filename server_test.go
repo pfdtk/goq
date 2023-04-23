@@ -41,18 +41,14 @@ func (t *TestTask) Run(_ context.Context, j *task.Job) (any, error) {
 }
 
 func (t *TestTask) Beforeware() []task.Middleware {
-	return []task.Middleware{
-		//task.NewMaxWorkerLimiter("test", t.GetName(), 1, 10),
-		task.NewLeakyBucketLimiter("test", t.GetName(), redis_rate.PerMinute(2)),
-	}
+	return nil
 }
 
 func (t *TestTask) Processware() []task.Middleware {
-	var mds = []task.Middleware{func(p any, next func(p any) any) any {
-		t.logger.Info("process middleware touch")
-		return next(p)
-	}}
-	return mds
+	return []task.Middleware{
+		//task.NewMaxWorkerLimiter("test", t.GetName(), 1, 10),
+		task.NewLeakyBucketLimiter("test", t.GetName(), redis_rate.PerMinute(10)),
+	}
 }
 
 func TestServer_Start(t *testing.T) {

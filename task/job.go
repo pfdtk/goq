@@ -120,6 +120,16 @@ func (j *Job) WhenFail(fn func()) {
 	j.errFunc = append(j.errFunc, fn)
 }
 
+func (j *Job) Then(fn func()) {
+	if fn == nil {
+		return
+	}
+	j.lock.Lock()
+	defer j.lock.Unlock()
+	j.errFunc = append(j.errFunc, fn)
+	j.successFunc = append(j.successFunc, fn)
+}
+
 func (j *Job) Success() {
 	for i := range j.successFunc {
 		j.successFunc[i]()
