@@ -11,17 +11,6 @@ import (
 // NewMaxWorkerLimiter you must add a redis connect to server first
 func NewMaxWorkerLimiter(conn string, name string, maxWorker int, timeout int) Middleware {
 	return func(p any, next func(p any) any) any {
-		var from string
-
-		switch p.(type) {
-		case *PopPassable:
-			from = "PopPassable"
-		case *RunPassable:
-			from = "RunPassable"
-		default:
-			return next(p)
-		}
-
 		logger.GetLogger().Infof("try to get max worker limiter lock, task=%s", name)
 		redis := connect.GetRedis(conn)
 		lockName := "goq-task-max-worker-limiter:" + name
@@ -31,10 +20,11 @@ func NewMaxWorkerLimiter(conn string, name string, maxWorker int, timeout int) M
 
 		if err != nil {
 			logger.GetLogger().Infof("fail to get max worker limiter lock, task=%s", name)
-			if from == "RunPassable" {
+			switch p.(type) {
+			case *RunPassable:
 				rp := p.(*RunPassable)
 				if err = rp.job.Release(context.Background(), rp.task.Backoff()); err != nil {
-					logger.GetLogger().Errorf("fail to release job when fail to get leaky bucket limiter lock, task=%s", name)
+					logger.GetLogger().Errorf("fail to release job when not get the max worker limiter lock, task=%s", name)
 				}
 			}
 			return false
@@ -42,11 +32,12 @@ func NewMaxWorkerLimiter(conn string, name string, maxWorker int, timeout int) M
 
 		logger.GetLogger().Infof("got max worker limiter lock, task=%s", name)
 
-		if from == "PopPassable" {
+		switch p.(type) {
+		case *PopPassable:
 			pp := p.(*PopPassable)
 			prev := pp.Callback
 			pp.Callback = func() {
-				logger.GetLogger().Infof("release max worker limiter lock, task=%s", name)
+				logger.GetLogger().Infof("release the max worker limiter lock, task=%s", name)
 				l.Release(token, id)
 				if prev != nil {
 					prev()

@@ -9,35 +9,27 @@ import (
 
 func NewLeakyBucketLimiter(conn string, name string, limit redis_rate.Limit) Middleware {
 	return func(p any, next func(p any) any) any {
-		var from string
-
-		switch p.(type) {
-		case *PopPassable:
-			from = "PopPassable"
-		case *RunPassable:
-			from = "RunPassable"
-		default:
-			return next(p)
-		}
-
 		logger.GetLogger().Infof("try to get leaky bucket limiter lock, task=%s", name)
 		redis := connect.GetRedis(conn)
 		limiter := redis_rate.NewLimiter(redis)
 		lockName := "goq-task-leaky-bucket-limiter:" + name
 		res, err := limiter.Allow(context.Background(), lockName, limit)
 
-		if err != nil || res.Allowed == 0 {
-			logger.GetLogger().Infof("fail to get leaky bucket limiter lock, task=%s", name)
-			if from == "RunPassable" {
-				rp := p.(*RunPassable)
-				if err = rp.job.Release(context.Background(), rp.task.Backoff()); err != nil {
-					logger.GetLogger().Errorf("fail to release job when fail to get leaky bucket limiter lock, task=%s", name)
-				}
-			}
-			return false
+		if err == nil && res.Allowed != 0 {
+			logger.GetLogger().Infof("got leaky bucket limiter lock, task=%s", name)
+			return next(p)
 		}
 
-		logger.GetLogger().Infof("got leaky bucket limiter lock, task=%s", name)
-		return next(p)
+		logger.GetLogger().Infof("fail to get leaky bucket limiter lock, task=%s", name)
+
+		switch p.(type) {
+		case *RunPassable:
+			rp := p.(*RunPassable)
+			if err = rp.job.Release(context.Background(), rp.task.Backoff()); err != nil {
+				logger.GetLogger().Errorf("fail to release job when not get the leaky bucket limiter lock, task=%s", name)
+			}
+		}
+
+		return false
 	}
 }
