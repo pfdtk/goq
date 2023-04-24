@@ -47,7 +47,7 @@ func TestDispatch(t *testing.T) {
 		PoolSize: 2,
 	})
 	c.AddRedisConnect("test", conn)
-	err = c.Dispatch(NewTask(log), []byte("test"))
+	err = c.Dispatch(NewTask(log), []byte("test"), task.WithUnique("testUuid", 30))
 	if err != nil {
 		t.Error(err)
 		return

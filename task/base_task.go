@@ -110,6 +110,10 @@ func (b *BaseTask) DispatchContext(
 	for i := range optsFun {
 		optsFun[i](opt)
 	}
+	if opt.UniqueId != "" && opt.UniqueTTL != 0 {
+		message.UniqueId = opt.UniqueId
+		message.UniqueTTL = opt.UniqueTTL
+	}
 	if opt.Delay == 0 {
 		err = q.Push(ctx, message)
 	} else {
