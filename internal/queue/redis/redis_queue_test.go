@@ -26,12 +26,14 @@ func getQueue() *Queue {
 func TestRedisQueue_Push(t *testing.T) {
 	q := getQueue()
 	err := q.Push(context.Background(), &queue.Message{
-		Type:    "test",
-		Payload: []byte("payload"),
-		ID:      "uuid-13",
-		Queue:   queueName,
-		Timeout: 10,
-		Retries: 2,
+		Type:      "test",
+		Payload:   []byte("payload"),
+		ID:        "uuid-13",
+		Queue:     queueName,
+		Timeout:   10,
+		Retries:   2,
+		UniqueId:  "testUniqueId",
+		UniqueTTL: 60,
 	})
 	if err != nil {
 		t.Error(err)
@@ -41,12 +43,14 @@ func TestRedisQueue_Push(t *testing.T) {
 func TestQueue_Later(t *testing.T) {
 	q := getQueue()
 	err := q.Later(context.Background(), &queue.Message{
-		Type:    "test",
-		Payload: []byte("payload"),
-		ID:      "uuid-13",
-		Queue:   queueName,
-		Timeout: 10,
-		Retries: 2,
+		Type:      "test",
+		Payload:   []byte("payload"),
+		ID:        "uuid-13",
+		Queue:     queueName,
+		Timeout:   10,
+		Retries:   2,
+		UniqueId:  "testUniqueIDelay",
+		UniqueTTL: 10,
 	}, time.Now().Add(10*time.Second))
 	if err != nil {
 		t.Error(err)

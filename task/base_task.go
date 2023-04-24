@@ -98,12 +98,13 @@ func (b *BaseTask) DispatchContext(
 		return errors.New("fail to get queue")
 	}
 	message := &queue.Message{
-		ID:      uuid.NewString(),
-		Type:    b.GetName(),
-		Payload: payload,
-		Queue:   b.OnQueue(),
-		Timeout: b.Timeout(),
-		Retries: b.Retries(),
+		ID:         uuid.NewString(),
+		Type:       b.GetName(),
+		Payload:    payload,
+		Queue:      b.OnQueue(),
+		Timeout:    b.Timeout(),
+		Retries:    b.Retries(),
+		DispatchAt: time.Now().Unix(),
 	}
 	opt := &DispatchOpt{}
 	for i := range optsFun {

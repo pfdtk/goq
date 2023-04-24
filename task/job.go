@@ -24,6 +24,8 @@ type Job struct {
 	retries uint
 	// how many times job has been tried
 	attempts uint
+	// the time when message was dispatched on queue
+	dispatchAt int64
 	// rawMessage raw message
 	rawMessage *queue.Message
 	// queue client
@@ -44,6 +46,7 @@ func NewJob(q queue.Queue, msg *queue.Message) *Job {
 		timeout:    msg.Timeout,
 		attempts:   msg.Attempts,
 		retries:    msg.Retries,
+		dispatchAt: msg.DispatchAt,
 		rawMessage: msg,
 		queue:      q,
 	}
@@ -71,6 +74,10 @@ func (j *Job) Retries() uint {
 
 func (j *Job) Attempts() uint {
 	return j.attempts
+}
+
+func (j *Job) DispatchAt() int64 {
+	return j.dispatchAt
 }
 
 func (j *Job) RawMessage() *queue.Message {

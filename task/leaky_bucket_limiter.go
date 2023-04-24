@@ -7,20 +7,23 @@ import (
 	"github.com/pfdtk/goq/logger"
 )
 
-func NewLeakyBucketLimiter(conn string, name string, limit redis_rate.Limit) Middleware {
+func NewLeakyBucketLimiter(
+	conn string,
+	name string,
+	limit redis_rate.Limit) Middleware {
 	return func(p any, next func(p any) any) any {
-		logger.GetLogger().Infof("try to get leaky bucket limiter lock, task=%s", name)
+		logger.GetLogger().Debugf("try to get leaky bucket limiter lock, task=%s", name)
 		redis := connect.GetRedis(conn)
 		limiter := redis_rate.NewLimiter(redis)
 		lockName := "goq-task-leaky-bucket-limiter:" + name
 		res, err := limiter.Allow(context.Background(), lockName, limit)
 
 		if err == nil && res.Allowed != 0 {
-			logger.GetLogger().Infof("got leaky bucket limiter lock, task=%s", name)
+			logger.GetLogger().Debugf("got leaky bucket limiter lock, task=%s", name)
 			return next(p)
 		}
 
-		logger.GetLogger().Infof("fail to get leaky bucket limiter lock, task=%s", name)
+		logger.GetLogger().Debugf("fail to get leaky bucket limiter lock, task=%s", name)
 
 		switch p.(type) {
 		case *RunPassable:

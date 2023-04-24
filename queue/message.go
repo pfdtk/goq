@@ -15,6 +15,12 @@ type Message struct {
 	Retries uint `json:"retries"`
 	// how many times job has been tried
 	Attempts uint `json:"attempts"`
+	// the time when message was dispatched in queue
+	DispatchAt int64 `json:"dispatch_at"`
+	// UniqueId of a message
+	UniqueId string `json:"unique_id"`
+	// keep message unique before UniqueTTL
+	UniqueTTL int64 `json:"unique_ttl"`
 	// use for visibility timeout and move raw message back to list
 	Reserved string `json:"-"`
 }

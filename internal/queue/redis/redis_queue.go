@@ -34,9 +34,9 @@ return {job, reserved}
 
 // Get the Lua script to migrate expired jobs back onto the queue.
 //
-//	KEYS[1] - The queue we are removing jobs from, for example: queues:foo:reserved
-//	KEYS[2] - The queue we are moving jobs to, for example: queues:foo
-//	ARGV[1] - The current UNIX timestamp
+//   - KEYS[1] - The queue we are removing jobs from, for example: queues:foo:reserved
+//   - KEYS[2] - The queue we are moving jobs to, for example: queues:foo
+//   - ARGV[1] - The current UNIX timestamp
 var migrateScript = redis.NewScript(`
 -- Get all of the jobs with an expired "score"...
 local val = redis.call('zrangebyscore', KEYS[1], '-inf', ARGV[1])
@@ -57,14 +57,52 @@ return val
 
 // Get the Lua script for releasing reserved jobs.
 //
-//	*
-//	* KEYS[1] - The "delayed" queue we release jobs onto, for example: queues:foo:delayed
-//	* KEYS[2] - The queue the jobs are currently on, for example: queues:foo:reserved
-//	* ARGV[1] - The raw payload of the job to add to the "delayed" queue
-//	* ARGV[2] - The UNIX timestamp at which the job should become available
+//   - KEYS[1] - The "delayed" queue we release jobs onto, for example: queues:foo:delayed
+//   - KEYS[2] - The queue the jobs are currently on, for example: queues:foo:reserved
+//   - ARGV[1] - The raw payload of the job to add to the "delayed" queue
+//   - ARGV[2] - The UNIX timestamp at which the job should become available
 var releaseScript = redis.NewScript(`
 -- Remove the job from the current queue...
 redis.call('zrem', KEYS[2], ARGV[1])
+
+-- Add the job onto the "delayed" queue...
+redis.call('zadd', KEYS[1], ARGV[2], ARGV[1])
+
+return true
+`)
+
+// Get the Lua script for unique jobs.
+//
+//   - KEYS[1] - The queue we push jobs onto, for example: queues:foo
+//   - KEYS[2] - The key we use to keep message unique before key expire
+//   - ARGV[1] - The raw payload of the job to add to the queue
+//   - ARGV[2] - Unique key TTL
+var pushUniqueScript = redis.NewScript(`
+-- get lock
+local ok = redis.call("SET", KEYS[2], 1, "NX", "EX", ARGV[2])
+if not ok then
+  return false
+end
+
+-- Add the job onto the queue...
+redis.call('rpush', KEYS[1], ARGV[1])
+
+return true
+`)
+
+// Get the Lua script for unique jobs.
+//
+//   - KEYS[1] - The queue we push jobs onto, for example: queues:foo
+//   - KEYS[2] - The key we use to keep message unique before key expire
+//   - ARGV[1] - The raw payload of the job to add to the queue
+//   - ARGV[2] - The UNIX timestamp at which the job should become available
+//   - ARGV[3] - Unique key TTL
+var laterUniqueScript = redis.NewScript(`
+-- get lock
+local ok = redis.call("SET", KEYS[2], 1, "NX", "EX", ARGV[3])
+if not ok then
+  return false
+end
 
 -- Add the job onto the "delayed" queue...
 redis.call('zadd', KEYS[1], ARGV[2], ARGV[1])
@@ -90,7 +128,13 @@ func (r *Queue) Push(ctx context.Context, message *queue.Message) error {
 	if err != nil {
 		return err
 	}
-	_, err = r.client.RPush(ctx, message.Queue, bytes).Result()
+	if message.UniqueId != "" && message.UniqueTTL != 0 {
+		keys := []string{message.Queue, message.Type + ":" + message.UniqueId}
+		argv := []any{bytes, message.UniqueTTL}
+		err = pushUniqueScript.Run(ctx, r.client, keys, argv...).Err()
+	} else {
+		err = r.client.RPush(ctx, message.Queue, bytes).Err()
+	}
 	return err
 }
 
@@ -105,11 +149,16 @@ func (r *Queue) Later(
 		return err
 	}
 	score := at.Unix()
-	_, err = r.client.ZAdd(ctx, q, redis.Z{
-		Score:  float64(score),
-		Member: bytes,
-	}).Result()
-
+	if message.UniqueId != "" && message.UniqueTTL != 0 {
+		keys := []string{q, message.Type + ":" + message.UniqueId}
+		argv := []any{bytes, score, message.UniqueTTL}
+		err = laterUniqueScript.Run(ctx, r.client, keys, argv...).Err()
+	} else {
+		err = r.client.ZAdd(ctx, q, redis.Z{
+			Score:  float64(score),
+			Member: bytes,
+		}).Err()
+	}
 	return err
 }
 

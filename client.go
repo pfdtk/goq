@@ -41,12 +41,13 @@ func DispatchContext(
 		return errors.New("fail to get queue")
 	}
 	message := &queue.Message{
-		ID:      uuid.NewString(),
-		Type:    t.GetName(),
-		Payload: payload,
-		Queue:   t.OnQueue(),
-		Timeout: t.Timeout(),
-		Retries: t.Retries(),
+		ID:         uuid.NewString(),
+		Type:       t.GetName(),
+		Payload:    payload,
+		Queue:      t.OnQueue(),
+		Timeout:    t.Timeout(),
+		Retries:    t.Retries(),
+		DispatchAt: time.Now().Unix(),
 	}
 	opt := &task.DispatchOpt{}
 	for i := range opts {
