@@ -17,8 +17,6 @@ const (
 	MigrateDelay MigrateType = "delay"
 )
 
-var undefined = ""
-
 type migrate struct {
 	tasks    *sync.Map
 	wg       *sync.WaitGroup
@@ -83,7 +81,7 @@ func (m *migrate) performMigrateTasks(t task.Task, cat MigrateType) {
 	}
 	q := rdq.NewRedisQueue(c)
 	from := m.getMigrateQueueKey(q, t.OnQueue(), cat)
-	if from == undefined {
+	if from == "" {
 		return
 	}
 	moveTo := t.OnQueue()
@@ -102,5 +100,5 @@ func (m *migrate) getMigrateQueueKey(q *rdq.Queue, qn string, cat MigrateType) s
 	case MigrateDelay:
 		return q.GetDelayedKey(qn)
 	}
-	return undefined
+	return ""
 }

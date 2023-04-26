@@ -9,7 +9,7 @@
 - task run through middleware
 - max worker of each task control by middleware
 - rate limit control by middleware
-- job unique with time ttl
+- job unique with ttl
 - prometheus [todo]
 - cli inspect [todo]
 
