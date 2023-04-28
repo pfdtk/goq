@@ -1,5 +1,10 @@
 package task
 
+import (
+	"crypto/md5"
+	"fmt"
+)
+
 type DispatchOpt struct {
 	Delay     int64
 	UniqueId  string
@@ -15,6 +20,15 @@ func WithDelay(delay int64) DispatchOptFunc {
 }
 
 func WithUnique(uniqueId string, uniqueTTL int64) DispatchOptFunc {
+	return func(opt *DispatchOpt) {
+		opt.UniqueId = uniqueId
+		opt.UniqueTTL = uniqueTTL
+	}
+}
+
+func WithPayloadUnique(payload []byte, uniqueTTL int64) DispatchOptFunc {
+	sum := md5.Sum(payload)
+	uniqueId := fmt.Sprintf("%x", sum)
 	return func(opt *DispatchOpt) {
 		opt.UniqueId = uniqueId
 		opt.UniqueTTL = uniqueTTL
