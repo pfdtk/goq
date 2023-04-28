@@ -28,41 +28,42 @@ func newManager() *Manager {
 }
 
 func Listen(e Event, h Handler) {
-	manager.Listen(e, h, false)
+	manager.Listen(e, h)
 }
 
 func Listens(events []Event, h Handler) {
 	for i := range events {
-		e := events[i]
-		manager.Listen(e, h, false)
+		Listen(events[i], h)
 	}
 }
 
 // IListen Do not use this function!, this function is use for internal
 func IListen(e Event, h Handler) {
-	manager.Listen(e, h, true)
+	manager.IListen(e, h)
 }
 
 func IListens(events []Event, h Handler) {
 	for i := range events {
-		e := events[i]
-		manager.Listen(e, h, true)
+		IListen(events[i], h)
 	}
 }
 
-func (m *Manager) Listen(e Event, h Handler, internal bool) {
+func (m *Manager) Listen(e Event, h Handler) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	en := e.Name()
-	if !internal {
-		handles := m.event[en]
-		handles = append(handles, h)
-		m.event[en] = handles
-	} else {
-		handles := m.internalEvent[en]
-		handles = append(handles, h)
-		m.internalEvent[en] = handles
-	}
+	handles := m.event[en]
+	handles = append(handles, h)
+	m.event[en] = handles
+}
+
+func (m *Manager) IListen(e Event, h Handler) {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+	en := e.Name()
+	handles := m.internalEvent[en]
+	handles = append(handles, h)
+	m.internalEvent[en] = handles
 }
 
 func Dispatch(e Event) {

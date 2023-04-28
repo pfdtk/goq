@@ -199,7 +199,8 @@ func (w *worker) getNextJob() (*task.Job, error) {
 	for i := range w.sortedTasks {
 		t := w.sortedTasks[i]
 		pp := task.NewPopPassable()
-		if !w.canTaskPop(t, pp) {
+		if !w.shouldGetNextJob(t, pp) {
+			w.delayGetNextJob(t)
 			continue
 		}
 		q := qm.GetQueue(t.OnConnect(), t.QueueType())
@@ -215,14 +216,15 @@ func (w *worker) getNextJob() (*task.Job, error) {
 			return j, nil
 		}
 		w.logger.Infof("no job for process, name=%s", t.GetName())
-		w.delayPopTask(t)
+		// current no message on queue, delay some seconds before next time
+		w.delayGetNextJob(t)
 		// exec callback func
 		pp.ExecCallback()
 	}
 	return nil, JobEmptyError
 }
 
-func (w *worker) canTaskPop(t task.Task, pp *task.PopPassable) bool {
+func (w *worker) shouldGetNextJob(t task.Task, pp *task.PopPassable) bool {
 	if t.Status() == task.Disable {
 		return false
 	}
@@ -238,14 +240,13 @@ func (w *worker) canTaskPop(t task.Task, pp *task.PopPassable) bool {
 	})
 	canPop, ok := res.(bool)
 	if !ok || !canPop {
-		w.delayPopTask(t)
 		return false
 	}
 	return true
 }
 
-// delayPopTask if task can not pop message or no message exist in queue, wait seconds before next pop
-func (w *worker) delayPopTask(task task.Task) {
+// delayGetNextJob if task can not pop message or no message exist in queue, wait seconds before next tick
+func (w *worker) delayGetNextJob(task task.Task) {
 	w.logger.Infof("wait for 3 second before next pop, name=%s", task.GetName())
 	w.lock.Lock()
 	defer w.lock.Unlock()

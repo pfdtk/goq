@@ -71,8 +71,10 @@ func (s *Server) stopServer() {
 	s.scheduler.stopScheduler()
 }
 
-func (s *Server) RegisterTask(task task.Task) {
-	s.tasks.Store(task.GetName(), task)
+func (s *Server) RegisterTask(tasks ...task.Task) {
+	for _, t := range tasks {
+		s.tasks.Store(t.GetName(), t)
+	}
 }
 
 func (s *Server) RegisterCronTask(spec string, task task.Task) {
