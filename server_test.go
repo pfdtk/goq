@@ -73,8 +73,5 @@ func TestServer_Start(t *testing.T) {
 	server.AddRedisConnect("test", conn)
 	server.RegisterTask(NewTask(log))
 	//server.RegisterCronTask("* * * * *", NewTask(log))
-	err = server.Start(context.Background())
-	if err != nil {
-		t.Error(err)
-	}
+	server.MustStart(context.Background())
 }

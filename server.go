@@ -35,48 +35,39 @@ func NewServer(config *ServerConfig) *Server {
 	}
 }
 
-func (s *Server) Start(ctx context.Context) error {
+func (s *Server) MustStart(ctx context.Context) {
 	s.logger.Info("starting server...")
-	err := s.startWorker(ctx)
-	if err != nil {
-		return err
-	}
-	err = s.startMigrate(ctx)
-	if err != nil {
-		return err
-	}
-	err = s.startScheduler(ctx)
-	if err != nil {
-		return err
-	}
+	s.mustStartWorker(ctx)
+	s.mustStartMigrate(ctx)
+	s.mustStartScheduler(ctx)
 	// wait for sign to exit
 	s.waitSignals()
 	// wait for all goroutine to finished
 	s.wg.Wait()
-
-	return nil
 }
 
-func (s *Server) startWorker(ctx context.Context) error {
+func (s *Server) mustStartWorker(ctx context.Context) {
 	s.logger.Info("starting worker...")
-	worker := newWorker(ctx, s)
-	s.worker = worker
-	err := worker.startConsuming()
-	return err
+	s.worker = newWorker(ctx, s)
+	if err := s.worker.startConsuming(); err != nil {
+		panic(err)
+	}
 }
 
-func (s *Server) startMigrate(ctx context.Context) error {
+func (s *Server) mustStartMigrate(ctx context.Context) {
 	s.logger.Info("starting migrate...")
-	migrate := newMigrate(ctx, s)
-	s.migrate = migrate
-	return migrate.startMigrate()
+	s.migrate = newMigrate(ctx, s)
+	if err := s.migrate.startMigrate(); err != nil {
+		panic(err)
+	}
 }
 
-func (s *Server) startScheduler(ctx context.Context) error {
+func (s *Server) mustStartScheduler(ctx context.Context) {
 	s.logger.Info("starting scheduler...")
-	scheduler := newScheduler(ctx, s)
-	s.scheduler = scheduler
-	return scheduler.startScheduler()
+	s.scheduler = newScheduler(ctx, s)
+	if err := s.scheduler.startScheduler(); err != nil {
+		panic(err)
+	}
 }
 
 func (s *Server) stopServer() {
