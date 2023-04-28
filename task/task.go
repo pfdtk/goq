@@ -33,8 +33,6 @@ type Task interface {
 	Retries() uint
 	// Timeout of job
 	Timeout() int64
-	// UniqueId use for unique message for a time period
-	UniqueId() string
 	// Beforeware a list of middleware decide whether to start to process this task
 	Beforeware() []Middleware
 	// Processware a list of middleware a task run through

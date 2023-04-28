@@ -24,7 +24,7 @@ func TestClient(t *testing.T) {
 	})
 	c.AddRedisConnect("test", conn)
 
-	err = NewTask(log).Dispatch([]byte("test payload"), task.WithDelay(10))
+	err = NewTask(log).Dispatch([]byte("test payload"), task.WithDelay(10), task.WithUnique("testUuid", 10))
 	if err != nil {
 		t.Error(err)
 		return

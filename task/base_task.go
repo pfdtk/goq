@@ -72,10 +72,6 @@ func (b *BaseTask) Timeout() int64 {
 	return b.Option.Timeout
 }
 
-func (b *BaseTask) UniqueId() string {
-	return b.Option.UniqueId
-}
-
 func (b *BaseTask) Beforeware() []Middleware {
 	return nil
 }
