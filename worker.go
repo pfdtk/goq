@@ -21,31 +21,31 @@ var (
 )
 
 type worker struct {
-	tasks       *sync.Map
-	sortedTasks []task.Task
-	delayPop    map[string]time.Time
-	wg          *sync.WaitGroup
-	lock        sync.Mutex
-	stopRun     chan struct{}
-	maxWorker   chan struct{}
-	jobChannel  chan *task.Job
-	ctx         context.Context
-	logger      logger.Logger
-	pl          *pipeline.Pipeline
+	tasks        *sync.Map
+	sortedTasks  []task.Task
+	delayConsume map[string]time.Time
+	wg           *sync.WaitGroup
+	lock         sync.Mutex
+	stopRun      chan struct{}
+	maxWorker    chan struct{}
+	jobChannel   chan *task.Job
+	ctx          context.Context
+	logger       logger.Logger
+	pl           *pipeline.Pipeline
 }
 
 func newWorker(ctx context.Context, s *Server) *worker {
 	w := &worker{
-		wg:          &s.wg,
-		tasks:       &s.tasks,
-		sortedTasks: task.SortTask(&s.tasks),
-		maxWorker:   make(chan struct{}, s.maxWorker),
-		stopRun:     make(chan struct{}),
-		jobChannel:  make(chan *task.Job, s.maxWorker),
-		ctx:         ctx,
-		logger:      s.logger,
-		pl:          pipeline.NewPipeline(),
-		delayPop:    make(map[string]time.Time),
+		wg:           &s.wg,
+		tasks:        &s.tasks,
+		sortedTasks:  task.SortTask(&s.tasks),
+		maxWorker:    make(chan struct{}, s.maxWorker),
+		stopRun:      make(chan struct{}),
+		jobChannel:   make(chan *task.Job, s.maxWorker),
+		ctx:          ctx,
+		logger:       s.logger,
+		pl:           pipeline.NewPipeline(),
+		delayConsume: make(map[string]time.Time),
 	}
 	return w
 }
@@ -200,7 +200,6 @@ func (w *worker) getNextJob() (*task.Job, error) {
 		t := w.sortedTasks[i]
 		pp := task.NewPopPassable()
 		if !w.shouldGetNextJob(t, pp) {
-			w.delayGetNextJob(t)
 			continue
 		}
 		q := qm.GetQueue(t.OnConnect(), t.QueueType())
@@ -228,8 +227,8 @@ func (w *worker) shouldGetNextJob(t task.Task, pp *task.PopPassable) bool {
 	if t.Status() == task.Disable {
 		return false
 	}
-	delayPopAt, ok := w.delayPop[t.OnQueue()]
-	if ok && time.Now().Before(delayPopAt) {
+	delayAt, ok := w.delayConsume[t.OnQueue()]
+	if ok && time.Now().Before(delayAt) {
 		return false
 	}
 	// check if task can pop message through middleware,
@@ -238,8 +237,9 @@ func (w *worker) shouldGetNextJob(t task.Task, pp *task.PopPassable) bool {
 	res := w.pl.Send(pp).Through(mds).Then(func(_ any) any {
 		return true
 	})
-	canPop, ok := res.(bool)
-	if !ok || !canPop {
+	can, ok := res.(bool)
+	if !ok || !can {
+		w.delayGetNextJob(t)
 		return false
 	}
 	return true
@@ -250,7 +250,7 @@ func (w *worker) delayGetNextJob(task task.Task) {
 	w.logger.Infof("wait for 3 second before next pop, name=%s", task.GetName())
 	w.lock.Lock()
 	defer w.lock.Unlock()
-	w.delayPop[task.OnQueue()] = time.Now().Add(3 * time.Second)
+	w.delayConsume[task.OnQueue()] = time.Now().Add(3 * time.Second)
 }
 
 func (w *worker) getJob(q queue.Queue, qn string) (*task.Job, error) {
