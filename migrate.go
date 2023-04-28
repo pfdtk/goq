@@ -2,10 +2,14 @@ package goq
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"github.com/pfdtk/goq/connect"
+	"github.com/pfdtk/goq/event"
 	rdq "github.com/pfdtk/goq/internal/queue/redis"
 	"github.com/pfdtk/goq/logger"
 	"github.com/pfdtk/goq/task"
+	"runtime/debug"
 	"sync"
 	"time"
 )
@@ -37,7 +41,7 @@ func newMigrate(ctx context.Context, s *Server) *migrate {
 	}
 }
 
-func (m *migrate) startMigrate() error {
+func (m *migrate) mustStartMigrate() {
 	redisTask := task.GetRedisTask(m.tasks)
 	if len(redisTask) != 0 {
 		for i := range redisTask {
@@ -45,7 +49,6 @@ func (m *migrate) startMigrate() error {
 			m.migrateRedisTasks(redisTask[i], MigrateDelay)
 		}
 	}
-	return nil
 }
 
 func (m *migrate) stopMigrating() {
@@ -56,13 +59,20 @@ func (m *migrate) stopMigrating() {
 func (m *migrate) migrateRedisTasks(t task.Task, cat MigrateType) {
 	m.wg.Add(1)
 	go func() {
+		defer func() {
+			if x := recover(); x != nil {
+				err := errors.New(fmt.Sprintf("Panic Error: %+v;\nStack: %s", x, string(debug.Stack())))
+				m.logger.Error(err)
+				m.handleError(err)
+			}
+		}()
 		defer m.wg.Done()
 		// tick
 		timer := time.NewTimer(m.interval)
 		for {
 			select {
 			case <-m.stopRun:
-				m.logger.Infof("migrate task stopped, task=%s, name=%s", cat, t.GetName())
+				m.logger.Infof("migrate stopped, task=%s, name=%s", cat, t.GetName())
 				timer.Stop()
 				return
 			case <-timer.C:
@@ -77,28 +87,35 @@ func (m *migrate) performMigrateTasks(t task.Task, cat MigrateType) {
 	c := connect.GetRedis(t.OnConnect())
 	if c == nil {
 		m.logger.Errorf("connect not found, name=%s", t.OnConnect())
+		m.handleError(errors.New("connect not found"))
 		return
 	}
 	q := rdq.NewRedisQueue(c)
 	from := m.getMigrateQueueKey(q, t.OnQueue(), cat)
-	if from == "" {
-		return
-	}
 	moveTo := t.OnQueue()
 	err := q.Migrate(m.ctx, from, moveTo)
 	if err != nil {
-		m.logger.Errorf("execute migrate error, task=%s, queue=%s", cat, t.OnQueue())
+		m.logger.Errorf("migrate error, task=%s, queue=%s", cat, t.OnQueue())
+		m.handleError(err)
 	} else {
-		m.logger.Infof("execute migrate success, task=%s, queue=%s", cat, t.OnQueue())
+		m.logger.Infof("migrate success, task=%s, queue=%s", cat, t.OnQueue())
 	}
 }
 
-func (m *migrate) getMigrateQueueKey(q *rdq.Queue, qn string, cat MigrateType) string {
+func (m *migrate) getMigrateQueueKey(
+	q *rdq.Queue,
+	qn string,
+	cat MigrateType) string {
 	switch cat {
 	case MigrateAck:
 		return q.GetReservedKey(qn)
 	case MigrateDelay:
 		return q.GetDelayedKey(qn)
+	default:
+		panic("invalid migrate type")
 	}
-	return ""
+}
+
+func (m *migrate) handleError(err error) {
+	event.Dispatch(NewMigrateErrorEvent(err))
 }

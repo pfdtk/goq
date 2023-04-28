@@ -49,25 +49,19 @@ func (s *Server) MustStart(ctx context.Context) {
 func (s *Server) mustStartWorker(ctx context.Context) {
 	s.logger.Info("starting worker...")
 	s.worker = newWorker(ctx, s)
-	if err := s.worker.startConsuming(); err != nil {
-		panic(err)
-	}
+	s.worker.mustStartConsuming()
 }
 
 func (s *Server) mustStartMigrate(ctx context.Context) {
 	s.logger.Info("starting migrate...")
 	s.migrate = newMigrate(ctx, s)
-	if err := s.migrate.startMigrate(); err != nil {
-		panic(err)
-	}
+	s.migrate.mustStartMigrate()
 }
 
 func (s *Server) mustStartScheduler(ctx context.Context) {
 	s.logger.Info("starting scheduler...")
 	s.scheduler = newScheduler(ctx, s)
-	if err := s.scheduler.startScheduler(); err != nil {
-		panic(err)
-	}
+	s.scheduler.mustStartScheduler()
 }
 
 func (s *Server) stopServer() {

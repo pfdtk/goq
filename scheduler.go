@@ -39,16 +39,15 @@ func newScheduler(ctx context.Context, s *Server) *scheduler {
 	}
 }
 
-func (s *scheduler) startScheduler() error {
+func (s *scheduler) mustStartScheduler() {
 	for i := range s.tasks {
 		t := s.tasks[i]
 		err := s.register(t.spec, t.task)
 		if err != nil {
-			return err
+			panic(err)
 		}
 	}
 	s.cron.Start()
-	return nil
 }
 
 func (s *scheduler) stopScheduler() {

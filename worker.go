@@ -36,24 +36,23 @@ type worker struct {
 
 func newWorker(ctx context.Context, s *Server) *worker {
 	w := &worker{
-		wg:         &s.wg,
-		tasks:      &s.tasks,
-		maxWorker:  make(chan struct{}, s.maxWorker),
-		stopRun:    make(chan struct{}),
-		jobChannel: make(chan *task.Job, s.maxWorker),
-		ctx:        ctx,
-		logger:     s.logger,
-		pl:         pipeline.NewPipeline(),
-		delayPop:   make(map[string]time.Time),
+		wg:          &s.wg,
+		tasks:       &s.tasks,
+		sortedTasks: task.SortTask(&s.tasks),
+		maxWorker:   make(chan struct{}, s.maxWorker),
+		stopRun:     make(chan struct{}),
+		jobChannel:  make(chan *task.Job, s.maxWorker),
+		ctx:         ctx,
+		logger:      s.logger,
+		pl:          pipeline.NewPipeline(),
+		delayPop:    make(map[string]time.Time),
 	}
 	return w
 }
 
-func (w *worker) startConsuming() error {
-	w.sortedTasks = task.SortTask(w.tasks)
+func (w *worker) mustStartConsuming() {
 	w.startPop()
 	w.startWork()
-	return nil
 }
 
 func (w *worker) stopConsuming() {
