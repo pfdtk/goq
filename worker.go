@@ -16,7 +16,8 @@ import (
 )
 
 var (
-	JobEmptyError = errors.New("no jobs are ready for processing")
+	JobEmptyError      = errors.New("no jobs are ready for processing")
+	QueueNotFoundError = errors.New("queue not found")
 )
 
 type worker struct {
@@ -82,6 +83,12 @@ func (w *worker) startPop() {
 }
 
 func (w *worker) pop() {
+	defer func() {
+		if x := recover(); x != nil {
+			err := errors.New(fmt.Sprintf("Panic Error: %+v;\nStack: %s", x, string(debug.Stack())))
+			w.handleError(err)
+		}
+	}()
 	j, err := w.getNextJob()
 	switch {
 	case errors.Is(err, JobEmptyError):
@@ -119,6 +126,12 @@ func (w *worker) startWork() {
 }
 
 func (w *worker) runJob(job *task.Job) {
+	defer func() {
+		if x := recover(); x != nil {
+			err := errors.New(fmt.Sprintf("Panic Error: %+v;\nStack: %s", x, string(debug.Stack())))
+			w.handleError(err)
+		}
+	}()
 	ctx, cancel := context.WithDeadline(w.ctx, job.TimeoutAt())
 	defer func() {
 		<-w.maxWorker
@@ -193,6 +206,7 @@ func (w *worker) getNextJob() (*task.Job, error) {
 		q := qm.GetQueue(t.OnConnect(), t.QueueType())
 		if q == nil {
 			w.logger.Errorf("queue not found, name=%s, conn=%s", t.OnQueue(), t.OnConnect())
+			w.handleError(QueueNotFoundError)
 			continue
 		}
 		w.logger.Infof("start to get job, name=%s", t.GetName())
@@ -202,8 +216,9 @@ func (w *worker) getNextJob() (*task.Job, error) {
 			return j, nil
 		}
 		w.logger.Infof("no job for process, name=%s", t.GetName())
-		pp.ExecCallback()
 		w.delayPopTask(t)
+		// exec callback func
+		pp.ExecCallback()
 	}
 	return nil, JobEmptyError
 }
@@ -212,7 +227,7 @@ func (w *worker) canTaskPop(t task.Task, pp *task.PopPassable) bool {
 	if t.Status() == task.Disable {
 		return false
 	}
-	delayPopAt, ok := w.delayPop[t.GetName()]
+	delayPopAt, ok := w.delayPop[t.OnQueue()]
 	if ok && time.Now().Before(delayPopAt) {
 		return false
 	}
@@ -232,11 +247,10 @@ func (w *worker) canTaskPop(t task.Task, pp *task.PopPassable) bool {
 
 // delayPopTask if task can not pop message or no message exist in queue, wait seconds before next pop
 func (w *worker) delayPopTask(task task.Task) {
-	name := task.GetName()
-	w.logger.Infof("wait for 3 second before next pop, name=%s", name)
+	w.logger.Infof("wait for 3 second before next pop, name=%s", task.GetName())
 	w.lock.Lock()
 	defer w.lock.Unlock()
-	w.delayPop[name] = time.Now().Add(3 * time.Second)
+	w.delayPop[task.OnQueue()] = time.Now().Add(3 * time.Second)
 }
 
 func (w *worker) getJob(q queue.Queue, qn string) (*task.Job, error) {
