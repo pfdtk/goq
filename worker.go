@@ -81,21 +81,22 @@ func (w *worker) startPop() {
 }
 
 func (w *worker) pop() {
+	var err error
 	defer func() {
 		if x := recover(); x != nil {
-			err := errors.New(fmt.Sprintf("Panic Error: %+v;\nStack: %s", x, string(debug.Stack())))
+			err = errors.New(fmt.Sprintf("Panic Error: %+v;\nStack: %s", x, string(debug.Stack())))
+		}
+		if err != nil {
 			w.handleError(err)
 		}
 	}()
 	j, err := w.getNextJob()
 	switch {
 	case errors.Is(err, JobEmptyError):
-		w.handleError(err)
 		time.Sleep(time.Second)
 		<-w.maxWorker
 		return
 	case err != nil:
-		w.handleError(err)
 		<-w.maxWorker
 		return
 	}
@@ -166,8 +167,7 @@ func (w *worker) perform(job *task.Job) (res any, err error) {
 			}
 		}
 	}()
-	name := job.Name()
-	v, ok := w.tasks.Load(name)
+	v, ok := w.tasks.Load(job.Name())
 	if ok {
 		t = v.(task.Task)
 		res, err = w.performThroughMiddleware(t, job)
