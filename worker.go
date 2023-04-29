@@ -8,7 +8,6 @@ import (
 	qm "github.com/pfdtk/goq/internal/queue"
 	"github.com/pfdtk/goq/logger"
 	"github.com/pfdtk/goq/pipeline"
-	"github.com/pfdtk/goq/queue"
 	"github.com/pfdtk/goq/task"
 	"runtime/debug"
 	"sync"
@@ -202,20 +201,14 @@ func (w *worker) getNextJob() (*task.Job, error) {
 		if !w.shouldGetNextJob(t, pp) {
 			continue
 		}
-		q := qm.GetQueue(t.OnConnect(), t.QueueType())
-		if q == nil {
-			w.logger.Errorf("queue not found, name=%s, conn=%s", t.OnQueue(), t.OnConnect())
-			w.handleError(QueueNotFoundError)
-			continue
-		}
 		w.logger.Infof("start to get job, name=%s", t.GetName())
-		j, err := w.getJob(q, t.OnQueue())
+		j, err := w.getJob(t)
 		if err == nil {
 			j.Then(pp.Callback)
 			return j, nil
 		}
 		w.logger.Infof("no job for process, name=%s", t.GetName())
-		// current no message on queue, delay some seconds before next time
+		// no message on queue, delay some seconds before next time
 		w.delayGetNextJob(t)
 		// exec callback func
 		pp.ExecCallback()
@@ -245,7 +238,6 @@ func (w *worker) shouldGetNextJob(t task.Task, pp *task.PopPassable) bool {
 	return true
 }
 
-// delayGetNextJob if task can not pop message or no message exist in queue, wait seconds before next tick
 func (w *worker) delayGetNextJob(task task.Task) {
 	w.logger.Infof("wait for 3 second before next pop, name=%s", task.GetName())
 	w.lock.Lock()
@@ -253,8 +245,14 @@ func (w *worker) delayGetNextJob(task task.Task) {
 	w.delayConsume[task.OnQueue()] = time.Now().Add(3 * time.Second)
 }
 
-func (w *worker) getJob(q queue.Queue, qn string) (*task.Job, error) {
-	msg, err := q.Pop(w.ctx, qn)
+func (w *worker) getJob(t task.Task) (*task.Job, error) {
+	q := qm.GetQueue(t.OnConnect(), t.QueueType())
+	if q == nil {
+		w.logger.Errorf("queue not found, name=%s, conn=%s", t.OnQueue(), t.OnConnect())
+		w.handleError(QueueNotFoundError)
+		return nil, QueueNotFoundError
+	}
+	msg, err := q.Pop(w.ctx, t.OnQueue())
 	if err == nil {
 		return task.NewJob(q, msg), nil
 	}
@@ -263,7 +261,6 @@ func (w *worker) getJob(q queue.Queue, qn string) (*task.Job, error) {
 
 func (w *worker) handleJobDone(_ task.Task, job *task.Job) {
 	w.logger.Infof("job processed, name=%s, id=%s", job.Name(), job.Id())
-	// call job success callback func
 	job.Success()
 	err := job.Delete(w.ctx)
 	if err != nil {
@@ -273,12 +270,11 @@ func (w *worker) handleJobDone(_ task.Task, job *task.Job) {
 
 func (w *worker) handleJobError(t task.Task, job *task.Job, err error) {
 	w.logger.Infof("job fail, name=%s, id=%s", job.Name(), job.Id())
-	// call job fail callback func
 	job.Fail()
 	var e error
 	if !job.IsReachMacAttempts() {
 		w.logger.Infof("job retry, name=%s, id=%s", job.Name(), job.Id())
-		e = w.retry(t, job)
+		e = job.Release(w.ctx, t.Backoff())
 	} else {
 		e = job.Delete(w.ctx)
 	}
@@ -296,9 +292,4 @@ func (w *worker) handleJobTimeoutError(job *task.Job) {
 
 func (w *worker) handleError(err error) {
 	event.Dispatch(NewWorkErrorEvent(err))
-}
-
-func (w *worker) retry(task task.Task, job *task.Job) (err error) {
-	backoff := task.Backoff()
-	return job.Release(w.ctx, backoff)
 }
