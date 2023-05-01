@@ -84,7 +84,8 @@ func (w *worker) pop() {
 	var err error
 	defer func() {
 		if x := recover(); x != nil {
-			err = errors.New(fmt.Sprintf("Panic Error: %+v;\nStack: %s", x, string(debug.Stack())))
+			stack := fmt.Sprintf("sanic: %+v;\nstack: %s", x, string(debug.Stack()))
+			err = errors.New(stack)
 		}
 		if err != nil {
 			w.handleError(err)
@@ -127,7 +128,8 @@ func (w *worker) startWork() {
 func (w *worker) runJob(job *task.Job) {
 	defer func() {
 		if x := recover(); x != nil {
-			err := errors.New(fmt.Sprintf("Panic Error: %+v;\nStack: %s", x, string(debug.Stack())))
+			stack := fmt.Sprintf("sanic: %+v;\nstack: %s", x, string(debug.Stack()))
+			err := errors.New(stack)
 			w.handleError(err)
 		}
 	}()
@@ -159,7 +161,8 @@ func (w *worker) perform(job *task.Job) (res any, err error) {
 	// recover err from tasks, so that program will not exit
 	defer func() {
 		if x := recover(); x != nil {
-			err = errors.New(fmt.Sprintf("Panic Error: %+v;\nStack: %s", x, string(debug.Stack())))
+			stack := fmt.Sprintf("sanic: %+v;\nstack: %s", x, string(debug.Stack()))
+			err = errors.New(stack)
 			if t != nil {
 				w.handleJobError(t, job, err)
 			} else {
