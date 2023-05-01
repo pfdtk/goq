@@ -182,10 +182,11 @@ func (w *worker) performThroughMiddleware(t task.Task, job *task.Job) (res any, 
 		event.Dispatch(task.NewJobAfterRunEvent(t, job))
 		if err != nil {
 			w.handleJobError(t, job, err)
+			return err
 		} else {
 			w.handleJobDone(t, job)
+			return nil
 		}
-		return nil
 	}
 	mds := task.CastMiddleware(t.Processware())
 	// run task through middleware
@@ -239,7 +240,7 @@ func (w *worker) shouldGetNextJob(t task.Task, pp *task.PopPassable) bool {
 }
 
 func (w *worker) delayGetNextJob(task task.Task) {
-	w.logger.Infof("wait for 3 second before next pop, name=%s", task.GetName())
+	w.logger.Infof("wait for 3 second before next time, name=%s", task.GetName())
 	w.lock.Lock()
 	defer w.lock.Unlock()
 	w.delayConsume[task.OnQueue()] = time.Now().Add(3 * time.Second)
