@@ -10,7 +10,6 @@
 - max worker of each task control by middleware
 - rate limit control by middleware
 - job unique with ttl
-- prometheus [todo]
 - cli inspect [todo]
 
 ### server example
