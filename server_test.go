@@ -61,7 +61,7 @@ func TestServer_Start(t *testing.T) {
 	log.Info("xx")
 	server := NewServer(&ServerConfig{
 		MaxWorker: 2,
-		logger:    log,
+		Logger:    log,
 	})
 	// connect
 	conn, _ := connect.NewRedisConn(&connect.RedisConf{

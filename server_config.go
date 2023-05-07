@@ -6,5 +6,5 @@ import (
 
 type ServerConfig struct {
 	MaxWorker int
-	logger    logger.Logger
+	Logger    logger.Logger
 }
