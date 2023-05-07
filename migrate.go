@@ -61,7 +61,8 @@ func (m *migrate) migrateRedisTasks(t task.Task, cat MigrateType) {
 	go func() {
 		defer func() {
 			if x := recover(); x != nil {
-				err := errors.New(fmt.Sprintf("Panic Error: %+v;\nStack: %s", x, string(debug.Stack())))
+				stack := fmt.Sprintf("panic: %+v;\nstack: %s", x, string(debug.Stack()))
+				err := errors.New(stack)
 				m.logger.Error(err)
 				m.handleError(err)
 			}

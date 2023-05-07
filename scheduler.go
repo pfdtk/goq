@@ -3,10 +3,13 @@ package goq
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"github.com/pfdtk/goq/event"
 	"github.com/pfdtk/goq/logger"
 	"github.com/pfdtk/goq/task"
 	"github.com/robfig/cron/v3"
+	"runtime/debug"
 	"time"
 )
 
@@ -59,6 +62,13 @@ func (s *scheduler) stopScheduler() {
 
 func (s *scheduler) register(spec string, t task.Task) error {
 	_, err := s.cron.AddFunc(spec, func() {
+		defer func() {
+			if x := recover(); x != nil {
+				stack := fmt.Sprintf("panic: %+v;\nstack: %s", x, string(debug.Stack()))
+				err := errors.New(stack)
+				event.Dispatch(NewSchedulerErrorEvent(err))
+			}
+		}()
 		s.logger.Infof("scheduler trigger, name=%s", t.GetName())
 		// when scheduler, we will dispatch task to queue, then process by worker
 		payload, err := json.Marshal(&payload{CreatedAt: time.Now().Unix()})
