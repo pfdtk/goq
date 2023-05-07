@@ -16,6 +16,7 @@ func NewLeakyBucketLimiter(
 		redis := connect.GetRedis(conn)
 		limiter := redis_rate.NewLimiter(redis)
 		lockName := "goq-task-leaky-bucket-limiter:" + name
+		// todo release token if no job for processing
 		res, err := limiter.Allow(context.Background(), lockName, limit)
 
 		if err == nil && res.Allowed != 0 {

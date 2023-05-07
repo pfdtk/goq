@@ -67,8 +67,8 @@ func (s *Server) mustStartScheduler(ctx context.Context) {
 func (s *Server) stopServer() {
 	s.logger.Info("Gracefully down server...")
 	s.migrate.stopMigrating()
-	s.worker.stopConsuming()
 	s.scheduler.stopScheduler()
+	s.worker.stopConsuming()
 }
 
 func (s *Server) RegisterTask(tasks ...task.Task) {
@@ -104,10 +104,9 @@ func (s *Server) waitSignals() {
 	for {
 		sig := <-sigs
 		switch sig {
-		case unix.SIGTERM:
-		case unix.SIGINT:
+		case unix.SIGTERM, unix.SIGINT:
 			s.stopServer()
-			break
+			return
 		default:
 		}
 	}
