@@ -12,6 +12,8 @@ another golang distributed queue
 - max worker of each task control by middleware
 - rate limit control by middleware
 - job unique with ttl
+- redis
+- sqs [todo]
 
 ### server example
 
