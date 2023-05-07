@@ -72,7 +72,7 @@ func DispatchContext(
 
 func NewClient(config *ClientConfig) *Client {
 	client = &Client{
-		logger: config.logger,
+		logger: config.Logger,
 	}
 	return client
 }

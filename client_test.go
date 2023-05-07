@@ -14,7 +14,7 @@ func TestClient(t *testing.T) {
 		return
 	}
 	log := z.Sugar()
-	c := NewClient(&ClientConfig{logger: log})
+	c := NewClient(&ClientConfig{Logger: log})
 	// connect
 	conn, _ := connect.NewRedisConn(&connect.RedisConf{
 		Addr:     "127.0.0.1",
@@ -42,7 +42,7 @@ func TestDispatch(t *testing.T) {
 		return
 	}
 	log := z.Sugar()
-	c := NewClient(&ClientConfig{logger: log})
+	c := NewClient(&ClientConfig{Logger: log})
 	// connect
 	conn, _ := connect.NewRedisConn(&connect.RedisConf{
 		Addr:     "127.0.0.1",

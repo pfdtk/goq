@@ -5,5 +5,5 @@ import (
 )
 
 type ClientConfig struct {
-	logger logger.Logger
+	Logger logger.Logger
 }
