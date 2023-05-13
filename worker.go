@@ -89,6 +89,7 @@ func (w *worker) pop() {
 			err = errors.Join(err, errors.New(stack))
 		}
 		if err != nil {
+			time.Sleep(time.Second)
 			// we should release token when error
 			<-w.maxWorker
 			w.handleError(err)
@@ -96,11 +97,7 @@ func (w *worker) pop() {
 	}()
 	// get next job to process
 	j, err := w.getNextJob()
-	switch {
-	case errors.Is(err, JobEmptyError):
-		time.Sleep(time.Second)
-		return
-	case err != nil:
+	if err != nil {
 		return
 	}
 	// send to channel wait for process

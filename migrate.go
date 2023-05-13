@@ -43,11 +43,9 @@ func newMigrate(ctx context.Context, s *Server) *migrate {
 
 func (m *migrate) mustStartMigrate() {
 	redisTask := task.GetRedisTask(m.tasks)
-	if len(redisTask) != 0 {
-		for i := range redisTask {
-			m.migrateRedisTasks(redisTask[i], MigrateAck)
-			m.migrateRedisTasks(redisTask[i], MigrateDelay)
-		}
+	for i := range redisTask {
+		m.migrateRedisTasks(redisTask[i], MigrateAck)
+		m.migrateRedisTasks(redisTask[i], MigrateDelay)
 	}
 }
 
@@ -60,15 +58,12 @@ func (m *migrate) migrateRedisTasks(t task.Task, cat MigrateType) {
 	m.wg.Add(1)
 	go func() {
 		defer func() {
+			m.wg.Done()
 			if x := recover(); x != nil {
 				stack := fmt.Sprintf("panic: %+v;\nstack: %s", x, string(debug.Stack()))
-				err := errors.New(stack)
-				m.logger.Error(err)
-				m.handleError(err)
+				m.handleError(errors.New(stack))
 			}
 		}()
-		defer m.wg.Done()
-		// tick
 		timer := time.NewTimer(m.interval)
 		for {
 			select {
@@ -77,18 +72,17 @@ func (m *migrate) migrateRedisTasks(t task.Task, cat MigrateType) {
 				timer.Stop()
 				return
 			case <-timer.C:
-				m.performMigrateTasks(t, cat)
+				m.performMigrateTask(t, cat)
 				timer.Reset(m.interval)
 			}
 		}
 	}()
 }
 
-func (m *migrate) performMigrateTasks(t task.Task, cat MigrateType) {
+func (m *migrate) performMigrateTask(t task.Task, cat MigrateType) {
 	c := connect.GetRedis(t.OnConnect())
 	if c == nil {
-		m.logger.Errorf("connect not found, name=%s", t.OnConnect())
-		m.handleError(errors.New("connect not found"))
+		m.handleError(errors.New(fmt.Sprintf("connect not found, name=%s", t.OnConnect())))
 		return
 	}
 	q := rdq.NewRedisQueue(c)
@@ -118,5 +112,6 @@ func (m *migrate) getMigrateQueueKey(
 }
 
 func (m *migrate) handleError(err error) {
+	m.logger.Error(err)
 	event.Dispatch(NewMigrateErrorEvent(err))
 }
