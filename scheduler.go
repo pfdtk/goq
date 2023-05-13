@@ -62,22 +62,21 @@ func (s *scheduler) stopScheduler() {
 
 func (s *scheduler) register(spec string, t task.Task) error {
 	_, err := s.cron.AddFunc(spec, func() {
+		var err error
 		defer func() {
 			if x := recover(); x != nil {
 				stack := fmt.Sprintf("panic: %+v;\nstack: %s", x, string(debug.Stack()))
-				err := errors.New(stack)
+				err = errors.Join(err, errors.New(stack))
+			}
+			if err != nil {
 				event.Dispatch(NewSchedulerErrorEvent(err))
 			}
 		}()
 		s.logger.Infof("scheduler trigger, name=%s", t.GetName())
 		// when scheduler, we will dispatch task to queue, then process by worker
 		payload, err := json.Marshal(&payload{CreatedAt: time.Now().Unix()})
-		if err != nil {
-			event.Dispatch(NewSchedulerErrorEvent(err))
-		}
-		err = client.DispatchContext(s.ctx, t, payload)
-		if err != nil {
-			event.Dispatch(NewSchedulerErrorEvent(err))
+		if err == nil {
+			err = client.DispatchContext(s.ctx, t, payload)
 		}
 	})
 	return err
