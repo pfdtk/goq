@@ -16,6 +16,7 @@ import (
 
 var (
 	JobEmptyError      = errors.New("no jobs are ready for processing")
+	JobTimeoutError    = errors.New("job process timeout")
 	QueueNotFoundError = errors.New("queue not found")
 )
 
@@ -129,31 +130,41 @@ func (w *worker) startWork() {
 
 func (w *worker) runJob(job *task.Job) {
 	defer func() {
+		<-w.maxWorker
 		if x := recover(); x != nil {
 			stack := fmt.Sprintf("panic: %+v;\nstack: %s", x, string(debug.Stack()))
 			err := errors.New(stack)
 			w.handleError(err)
 		}
 	}()
-	ctx, cancel := context.WithDeadline(w.ctx, job.TimeoutAt())
-	defer func() {
-		<-w.maxWorker
-		cancel()
-	}()
-	prh := make(chan any, 1)
-	go func() {
+	fn := func(prh chan any) {
 		res, err := w.perform(job)
 		if err == nil {
 			prh <- res
 		} else {
 			prh <- err
 		}
+	}
+	_, err := w.runJobWithTimeout(fn, job.TimeoutAt())
+	if err != nil {
+		w.handleJobTimeoutError(job)
+	}
+}
+
+func (w *worker) runJobWithTimeout(
+	fn func(prh chan any), timeoutAt time.Time) (res any, err error) {
+
+	ctx, cancel := context.WithDeadline(w.ctx, timeoutAt)
+	defer func() {
+		cancel()
 	}()
+	prh := make(chan any, 1)
+	go fn(prh)
 	select {
-	case <-prh:
+	case res = <-prh:
 		return
 	case <-ctx.Done():
-		w.handleJobTimeoutError(job)
+		err = JobTimeoutError
 		return
 	}
 }

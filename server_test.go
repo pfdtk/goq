@@ -2,7 +2,6 @@ package goq
 
 import (
 	"context"
-	"github.com/go-redis/redis_rate/v10"
 	"github.com/pfdtk/goq/connect"
 	"github.com/pfdtk/goq/logger"
 	"github.com/pfdtk/goq/queue"
@@ -17,7 +16,7 @@ type TestTask struct {
 	logger logger.Logger
 }
 
-func NewTask(logger logger.Logger) *TestTask {
+func NewTestTask(logger logger.Logger) *TestTask {
 	option := &task.Option{
 		Name:      "test",
 		OnConnect: "test",
@@ -26,7 +25,7 @@ func NewTask(logger logger.Logger) *TestTask {
 		Status:    task.Active,
 		Priority:  0,
 		Retries:   0,
-		Timeout:   11,
+		Timeout:   5,
 	}
 	return &TestTask{
 		BaseTask: task.BaseTask{Option: option},
@@ -43,7 +42,7 @@ func (t *TestTask) Run(_ context.Context, j *task.Job) (any, error) {
 func (t *TestTask) Beforeware() []task.Middleware {
 	return []task.Middleware{
 		//task.NewMaxWorkerLimiter("test", t.GetName(), 1, 10),
-		task.NewLeakyBucketLimiter("test", t.GetName(), redis_rate.PerMinute(1)),
+		//task.NewLeakyBucketLimiter("test", t.GetName(), redis_rate.PerMinute(1)),
 	}
 }
 
@@ -71,7 +70,7 @@ func TestServer_Start(t *testing.T) {
 		PoolSize: 1,
 	})
 	server.AddRedisConnect("test", conn)
-	server.RegisterTask(NewTask(log))
-	//server.RegisterCronTask("* * * * *", NewTask(log))
+	server.RegisterTask(NewTestTask(log))
+	//server.RegisterCronTask("* * * * *", NewTestTask(log))
 	server.MustStart(context.Background())
 }
