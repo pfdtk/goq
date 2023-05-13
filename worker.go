@@ -86,22 +86,24 @@ func (w *worker) pop() {
 	defer func() {
 		if x := recover(); x != nil {
 			stack := fmt.Sprintf("panic: %+v;\nstack: %s", x, string(debug.Stack()))
-			err = errors.New(stack)
+			err = errors.Join(err, errors.New(stack))
 		}
 		if err != nil {
+			// we should release token when error
+			<-w.maxWorker
 			w.handleError(err)
 		}
 	}()
+	// get next job to process
 	j, err := w.getNextJob()
 	switch {
 	case errors.Is(err, JobEmptyError):
 		time.Sleep(time.Second)
-		<-w.maxWorker
 		return
 	case err != nil:
-		<-w.maxWorker
 		return
 	}
+	// send to channel wait for process
 	w.logger.Infof("job received, name=%s, id=%s", j.Name(), j.Id())
 	w.jobChannel <- j
 }
