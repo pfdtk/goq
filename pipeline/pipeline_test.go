@@ -11,7 +11,7 @@ func TestNewPipeline(t *testing.T) {
 		return next(p)
 	}}
 	p := NewPipeline()
-	p.Through(mds).Send("test").Then(func(_ any) any {
+	p.Through(mds...).Send("test").Then(func(_ any) any {
 		println("end")
 		return nil
 	})

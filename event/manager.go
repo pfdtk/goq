@@ -1,6 +1,9 @@
 package event
 
 import (
+	"errors"
+	"fmt"
+	"runtime/debug"
 	"sync"
 )
 
@@ -31,6 +34,7 @@ func Listen(e Event, h Handler) {
 	manager.Listen(e, h)
 }
 
+// Listens multi events
 func Listens(events []Event, h Handler) {
 	for i := range events {
 		Listen(events[i], h)
@@ -68,6 +72,17 @@ func (m *Manager) IListen(e Event, h Handler) {
 
 func Dispatch(e Event) {
 	manager.Dispatch(e)
+}
+
+func RecoverDispatch(e Event) (err error) {
+	defer func() {
+		if x := recover(); x != nil {
+			stack := fmt.Sprintf("panic: %+v;\nstack: %s", x, string(debug.Stack()))
+			err = errors.New(stack)
+		}
+	}()
+	manager.Dispatch(e)
+	return
 }
 
 func (m *Manager) Dispatch(e Event) {

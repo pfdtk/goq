@@ -71,7 +71,7 @@ func (w *worker) startPop() {
 		for {
 			select {
 			case <-w.stopRun:
-				w.logger.Info("worker pop received stop sign")
+				w.logger.Info("stop sign, stop to pop message")
 				return
 			case w.maxWorker <- struct{}{}:
 				go w.pop()
@@ -112,7 +112,7 @@ func (w *worker) startWork() {
 		for {
 			select {
 			case <-w.stopRun:
-				w.logger.Info("worker perform received stop sign")
+				w.logger.Info("stop sign, stop to work")
 				return
 			case j, ok := <-w.jobChannel:
 				// stop working when channel was closed
@@ -180,8 +180,10 @@ func (w *worker) perform(job *task.Job) (res any, err error) {
 	return
 }
 
-func (w *worker) performThroughMiddleware(t task.Task, job *task.Job) (res any, err error) {
-	fn := func(passable any) any {
+func (w *worker) performThroughMiddleware(
+	t task.Task, job *task.Job) (res any, err error) {
+	// task runner
+	fn := func(_ any) any {
 		event.Dispatch(task.NewJobBeforeRunEvent(t, job))
 		res, err = t.Run(w.ctx, job)
 		event.Dispatch(task.NewJobAfterRunEvent(t, job))
@@ -193,31 +195,32 @@ func (w *worker) performThroughMiddleware(t task.Task, job *task.Job) (res any, 
 			return nil
 		}
 	}
-	mds := task.CastMiddleware(t.Processware())
-	// run task through middleware
-	passable := task.NewRunPassable(t, job)
-	w.pl.Send(passable).Through(mds).Then(fn)
+	// call func through middleware
+	w.pl.Send(task.NewRunPassable(t, job)).
+		Through(task.CastMiddleware(t.Processware())...).
+		Then(fn)
+
 	return
 }
 
 func (w *worker) getNextJob() (*task.Job, error) {
 	for i := range w.sortedTasks {
 		t := w.sortedTasks[i]
-		pp := task.NewPopPassable()
-		if !w.shouldGetNextJob(t, pp) {
+		passable := task.NewPopPassable()
+		if !w.shouldGetNextJob(t, passable) {
 			continue
 		}
-		w.logger.Infof("start to get job, name=%s", t.GetName())
-		j, err := w.getJob(t)
+		w.logger.Debugf("start to get job, name=%s", t.GetName())
+		job, err := w.getJob(t)
 		if err == nil {
-			j.Then(pp.Callback)
-			return j, nil
+			job.Then(passable.GetCallback())
+			return job, nil
 		}
-		w.logger.Infof("no job for process, name=%s", t.GetName())
+		w.logger.Debugf("no job for process, name=%s", t.GetName())
 		// no message on queue, delay some seconds before next time
 		w.delayGetNextJob(t)
 		// exec callback func
-		pp.ExecCallback()
+		passable.Callback()
 	}
 	return nil, JobEmptyError
 }
@@ -231,11 +234,10 @@ func (w *worker) shouldGetNextJob(t task.Task, pp *task.PopPassable) bool {
 		return false
 	}
 	// check if task can pop message through middleware,
-	// and middleware handle should return a bool value
-	mds := task.CastMiddleware(t.Beforeware())
-	res := w.pl.Send(pp).Through(mds).Then(func(_ any) any {
-		return true
-	})
+	res := w.pl.Send(pp).
+		Through(task.CastMiddleware(t.Beforeware())...).
+		Then(func(_ any) any { return true })
+	// middleware handle should return a bool value
 	can, ok := res.(bool)
 	if !ok || !can {
 		w.delayGetNextJob(t)
@@ -245,7 +247,7 @@ func (w *worker) shouldGetNextJob(t task.Task, pp *task.PopPassable) bool {
 }
 
 func (w *worker) delayGetNextJob(task task.Task) {
-	w.logger.Infof("wait for 3 second before next time, name=%s", task.GetName())
+	w.logger.Debugf("wait for 3 second before next time, name=%s", task.GetName())
 	w.lock.Lock()
 	defer w.lock.Unlock()
 	w.delayConsume[task.OnQueue()] = time.Now().Add(3 * time.Second)

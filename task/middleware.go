@@ -14,16 +14,24 @@ func NewRunPassable(t Task, j *Job) *RunPassable {
 }
 
 type PopPassable struct {
-	Callback func()
+	callback func()
 }
 
 func NewPopPassable() *PopPassable {
 	return &PopPassable{}
 }
 
-func (p *PopPassable) ExecCallback() {
-	if p.Callback != nil {
-		p.Callback()
+func (p *PopPassable) SetCallback(fn func()) {
+	p.callback = fn
+}
+
+func (p *PopPassable) GetCallback() func() {
+	return p.callback
+}
+
+func (p *PopPassable) Callback() {
+	if p.callback != nil {
+		p.callback()
 	}
 }
 

@@ -36,7 +36,7 @@ func TestNewMiddlewarePipeline(t *testing.T) {
 	}}
 	p := pipeline.NewPipeline()
 	hds := CastMiddleware(mds)
-	r := p.Through(hds).Send(NewRunPassable(NewTask(), nil)).Then(func(_ any) any {
+	r := p.Through(hds...).Send(NewRunPassable(NewTask(), nil)).Then(func(_ any) any {
 		println("end")
 		return "return end"
 	})

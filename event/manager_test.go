@@ -33,5 +33,10 @@ func TestManager_Dispatch(t *testing.T) {
 		println(e.Name())
 		return true
 	})
+	Listens([]Event{e}, func(e Event) bool {
+		println(e.Name())
+		return true
+	})
 	Dispatch(e)
+	_ = RecoverDispatch(e)
 }

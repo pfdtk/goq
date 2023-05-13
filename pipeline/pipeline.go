@@ -18,7 +18,7 @@ func (m *Pipeline) Send(p any) *Pipeline {
 	return m
 }
 
-func (m *Pipeline) Through(hds []Handler) *Pipeline {
+func (m *Pipeline) Through(hds ...Handler) *Pipeline {
 	m.handler = hds
 	return m
 }

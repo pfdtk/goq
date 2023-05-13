@@ -9,6 +9,7 @@ import (
 )
 
 // NewMaxWorkerLimiter you must add a redis connect to server first
+// This middleware can be used in beforeware & processware
 func NewMaxWorkerLimiter(
 	conn string,
 	name string,
@@ -39,14 +40,14 @@ func NewMaxWorkerLimiter(
 		switch p.(type) {
 		case *PopPassable:
 			pp := p.(*PopPassable)
-			prev := pp.Callback
-			pp.Callback = func() {
+			prev := pp.GetCallback()
+			pp.SetCallback(func() {
 				logger.GetLogger().Debugf("release the max worker limiter lock, task=%s", name)
 				l.Release(token, id)
 				if prev != nil {
 					prev()
 				}
-			}
+			})
 		}
 
 		return next(p)
