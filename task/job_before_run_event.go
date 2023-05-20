@@ -1,8 +1,8 @@
 package task
 
 type JobBeforeRunEventValue struct {
-	task Task
-	job  *Job
+	Task Task
+	Job  *Job
 }
 
 type JobBeforeRunEvent struct {
@@ -10,7 +10,7 @@ type JobBeforeRunEvent struct {
 }
 
 func NewJobBeforeRunEvent(t Task, j *Job) *JobBeforeRunEvent {
-	return &JobBeforeRunEvent{&JobBeforeRunEventValue{task: t, job: j}}
+	return &JobBeforeRunEvent{&JobBeforeRunEventValue{Task: t, Job: j}}
 }
 
 func (j *JobBeforeRunEvent) Name() string {

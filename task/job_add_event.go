@@ -5,8 +5,8 @@ import (
 )
 
 type JobAddEventValue struct {
-	task    Task
-	message *queue.Message
+	Task    Task
+	Message *queue.Message
 }
 
 type JobAddEvent struct {
@@ -14,7 +14,7 @@ type JobAddEvent struct {
 }
 
 func NewJobAddEvent(t Task, message *queue.Message) *JobAddEvent {
-	return &JobAddEvent{&JobAddEventValue{task: t, message: message}}
+	return &JobAddEvent{&JobAddEventValue{Task: t, Message: message}}
 }
 
 func (j *JobAddEvent) Name() string {

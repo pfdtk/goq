@@ -1,9 +1,9 @@
 package task
 
 type JobErrorEventValue struct {
-	task Task
-	job  *Job
-	err  error
+	Task Task
+	Job  *Job
+	Err  error
 }
 
 type JobErrorEvent struct {
@@ -11,7 +11,7 @@ type JobErrorEvent struct {
 }
 
 func NewJobErrorEvent(t Task, j *Job, err error) *JobErrorEvent {
-	return &JobErrorEvent{&JobErrorEventValue{task: t, job: j, err: err}}
+	return &JobErrorEvent{&JobErrorEventValue{Task: t, Job: j, Err: err}}
 }
 
 func (j *JobErrorEvent) Name() string {

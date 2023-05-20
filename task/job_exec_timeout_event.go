@@ -1,7 +1,7 @@
 package task
 
 type JobExecTimeoutEventValue struct {
-	job *Job
+	Job *Job
 }
 
 type JobExecTimeoutEvent struct {
@@ -10,7 +10,7 @@ type JobExecTimeoutEvent struct {
 
 func NewJobExecTimeoutEvent(job *Job) *JobExecTimeoutEvent {
 	return &JobExecTimeoutEvent{
-		&JobExecTimeoutEventValue{job: job},
+		&JobExecTimeoutEventValue{Job: job},
 	}
 }
 
