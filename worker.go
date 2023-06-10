@@ -96,13 +96,13 @@ func (w *worker) pop() {
 		}
 	}()
 	// get next job to process
-	j, err := w.getNextJob()
+	job, err := w.getNextJob()
 	if err != nil {
 		return
 	}
 	// send to channel wait for process
-	w.logger.Infof("job received, name=%s, id=%s", j.Name(), j.Id())
-	w.jobChannel <- j
+	w.logger.Infof("job received, name=%s, id=%s", job.Name(), job.Id())
+	w.jobChannel <- job
 }
 
 func (w *worker) startWork() {
@@ -114,13 +114,13 @@ func (w *worker) startWork() {
 			case <-w.stopRun:
 				w.logger.Info("stop working")
 				return
-			case j, ok := <-w.jobChannel:
+			case job, ok := <-w.jobChannel:
 				// stop working when channel was closed
 				if !ok {
 					return
 				}
-				w.logger.Infof("job processing, name=%s, id=%s", j.Name(), j.Id())
-				go w.runJob(j)
+				w.logger.Infof("job processing, name=%s, id=%s", job.Name(), job.Id())
+				go w.runJob(job)
 			}
 		}
 	}()
@@ -151,7 +151,6 @@ func (w *worker) runJob(job *task.Job) {
 
 func (w *worker) runJobWithTimeout(
 	fn func(prh chan any), timeoutAt time.Time) (res any, err error) {
-
 	ctx, cancel := context.WithDeadline(w.ctx, timeoutAt)
 	defer func() {
 		cancel()
