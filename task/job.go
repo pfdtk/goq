@@ -144,13 +144,13 @@ func (j *Job) Success() {
 	}
 }
 
-func (j *Job) Fail() {
+func (j *Job) Failure() {
 	for i := range j.errFunc {
 		j.errFunc[i]()
 	}
 }
 
-func (j *Job) DispatchNextJobInChain(ctx context.Context) error {
+func (j *Job) DispatchChain(ctx context.Context) error {
 	if len(j.rawMessage.Chain) == 0 {
 		return nil
 	}

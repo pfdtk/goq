@@ -201,7 +201,7 @@ func (w *worker) performThroughMiddleware(
 			w.handleJobError(t, job, err)
 			return err
 		} else {
-			err = job.DispatchNextJobInChain(w.ctx)
+			err = job.DispatchChain(w.ctx)
 			if err != nil {
 				return err
 			} else {
@@ -294,7 +294,7 @@ func (w *worker) handleJobDone(_ task.Task, job *task.Job) {
 
 func (w *worker) handleJobError(t task.Task, job *task.Job, err error) {
 	w.logger.Infof("job fail, name=%s, id=%s", job.Name(), job.Id())
-	job.Fail()
+	job.Failure()
 	var e error
 	if !job.IsReachMacAttempts() {
 		w.logger.Infof("job retry, name=%s, id=%s", job.Name(), job.Id())
@@ -310,7 +310,7 @@ func (w *worker) handleJobError(t task.Task, job *task.Job, err error) {
 
 func (w *worker) handleJobTimeoutError(job *task.Job) {
 	w.logger.Infof("job exec timeout, id=%s, name=%s", job.Id(), job.Name())
-	job.Fail()
+	job.Failure()
 	event.Dispatch(task.NewJobExecTimeoutEvent(job))
 }
 
