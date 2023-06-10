@@ -16,6 +16,23 @@ type TestTask struct {
 	logger logger.Logger
 }
 
+func NewTestTask2() *TestTask {
+	option := &task.Option{
+		Name:      "test2",
+		OnConnect: "test",
+		QueueType: queue.Redis,
+		OnQueue:   "default2",
+		Status:    task.Active,
+		Priority:  0,
+		Retries:   0,
+		Timeout:   500,
+	}
+	return &TestTask{
+		BaseTask: task.BaseTask{Option: option},
+		logger:   logger.GetLogger(),
+	}
+}
+
 func NewTestTask() *TestTask {
 	option := &task.Option{
 		Name:      "test",
@@ -71,6 +88,7 @@ func TestServer_Start(t *testing.T) {
 	})
 	server.AddRedisConnect("test", conn)
 	server.RegisterTask(NewTestTask())
+	server.RegisterTask(NewTestTask2())
 	//server.RegisterCronTask("* * * * *", NewTestTask(log))
 	server.MustStart(context.Background())
 }

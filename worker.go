@@ -186,6 +186,8 @@ func (w *worker) perform(job *task.Job) (res any, err error) {
 	if ok {
 		t = v.(task.Task)
 		res, err = w.performThroughMiddleware(t, job)
+	} else {
+		_ = job.Delete(w.ctx)
 	}
 	return
 }

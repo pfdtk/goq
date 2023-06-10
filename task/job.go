@@ -2,6 +2,7 @@ package task
 
 import (
 	"context"
+	qm "github.com/pfdtk/goq/internal/queue"
 	"github.com/pfdtk/goq/queue"
 	"sync"
 	"time"
@@ -158,5 +159,6 @@ func (j *Job) DispatchNextJobInChain(ctx context.Context) error {
 		chain := j.rawMessage.Chain[1:]
 		next.Chain = chain
 	}
-	return j.queue.Push(ctx, next)
+	q := qm.GetQueue(next.OnConnect, next.QueueType)
+	return q.Push(ctx, next)
 }

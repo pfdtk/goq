@@ -70,7 +70,7 @@ func TestChain_Dispatch(t *testing.T) {
 
 	t1 := NewTestTask().SetPayload([]byte("test chain 1"))
 	t2 := NewTestTask().SetPayload([]byte("test chain 2"))
-	t3 := NewTestTask().SetPayload([]byte("test chain 3"))
+	t3 := NewTestTask2().SetPayload([]byte("test chain 3"))
 	c := task.NewChain(t1, t2, t3)
 	_ = c.Dispatch()
 }
