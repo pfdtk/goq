@@ -15,7 +15,7 @@ func NewTask() *TestTask {
 		Name:      "test",
 		OnConnect: "test",
 		QueueType: queue.Redis,
-		OnQueue:   "default",
+		OnQueue:   "test_chain",
 		Status:    Active,
 		Priority:  0,
 		Retries:   0,

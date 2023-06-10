@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-var queueName = "default"
+var queueName = "test_chain"
 
 func getQueue() *Queue {
 	c, _ := connect.NewRedisConn(&connect.RedisConf{
@@ -73,6 +73,19 @@ func TestQueue_Pop(t *testing.T) {
 		t.Error(err)
 	} else {
 		t.Log(s)
+	}
+}
+
+func TestQueue_Pop_Delete(t *testing.T) {
+	q := getQueue()
+	s, err := q.Pop(context.Background(), queueName)
+	if err != nil && !errors.Is(err, redis.Nil) {
+		t.Error(err)
+	} else {
+		err = q.Delete(context.Background(), queueName, s)
+		if err != nil {
+			t.Error(err)
+		}
 	}
 }
 

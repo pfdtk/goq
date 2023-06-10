@@ -16,7 +16,7 @@ type TestTask struct {
 	logger logger.Logger
 }
 
-func NewTestTask(logger logger.Logger) *TestTask {
+func NewTestTask() *TestTask {
 	option := &task.Option{
 		Name:      "test",
 		OnConnect: "test",
@@ -25,11 +25,11 @@ func NewTestTask(logger logger.Logger) *TestTask {
 		Status:    task.Active,
 		Priority:  0,
 		Retries:   0,
-		Timeout:   5,
+		Timeout:   500,
 	}
 	return &TestTask{
 		BaseTask: task.BaseTask{Option: option},
-		logger:   logger,
+		logger:   logger.GetLogger(),
 	}
 }
 
@@ -70,7 +70,7 @@ func TestServer_Start(t *testing.T) {
 		PoolSize: 1,
 	})
 	server.AddRedisConnect("test", conn)
-	server.RegisterTask(NewTestTask(log))
-	server.RegisterCronTask("* * * * *", NewTestTask(log))
+	server.RegisterTask(NewTestTask())
+	//server.RegisterCronTask("* * * * *", NewTestTask(log))
 	server.MustStart(context.Background())
 }

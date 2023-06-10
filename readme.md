@@ -1,17 +1,17 @@
 ### feature
 
-another golang distributed queue
+another golang distributed task queue
 
-- job ack
-- queue priority
-- job backoff retry
-- job execute timeout notice by event dispatch
-- job recover by ack feature
-- task scheduler
-- task run through middleware
-- max worker of each task control by middleware
-- rate limit control by middleware
-- job unique with ttl
+- ack
+- priority
+- backoff retry
+- at least once
+- scheduler
+- middleware
+- max worker control
+- rate limit control
+- unique with ttl
+- chain
 - redis
 - sqs [todo]
 

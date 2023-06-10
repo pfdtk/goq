@@ -33,6 +33,8 @@ type Task interface {
 	Retries() uint
 	// Timeout of job
 	Timeout() int64
+	// Payload for the task to exec
+	Payload() []byte
 	// Beforeware a list of middleware decide whether to start to process this task
 	Beforeware() []Middleware
 	// Processware a list of middleware a task run through

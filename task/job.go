@@ -148,3 +148,15 @@ func (j *Job) Fail() {
 		j.errFunc[i]()
 	}
 }
+
+func (j *Job) DispatchNextJobInChain(ctx context.Context) error {
+	if len(j.rawMessage.Chain) == 0 {
+		return nil
+	}
+	next := j.rawMessage.Chain[0]
+	if len(j.rawMessage.Chain) > 1 {
+		chain := j.rawMessage.Chain[1:]
+		next.Chain = chain
+	}
+	return j.queue.Push(ctx, next)
+}

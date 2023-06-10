@@ -23,4 +23,6 @@ type Option struct {
 	Retries uint
 	// Timeout job timeout
 	Timeout int64
+	// Payload send to task
+	Payload []byte
 }

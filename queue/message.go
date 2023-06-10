@@ -21,6 +21,12 @@ type Message struct {
 	UniqueId string `json:"unique_id"`
 	// keep message unique before UniqueTTL
 	UniqueTTL int64 `json:"unique_ttl"`
+	//OnConnect which connect
+	OnConnect string `json:"on_connect"`
+	// QueueType queue type, redis or sqs...
+	QueueType Type `json:"queue_type"`
+	// Chain a set of tasks which will be executed one by one
+	Chain []*Message `json:"chain"`
 	// use for visibility timeout and move raw message back to list
 	Reserved string `json:"-"`
 }

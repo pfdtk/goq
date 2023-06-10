@@ -196,13 +196,18 @@ func (w *worker) performThroughMiddleware(
 	fn := func(_ any) any {
 		event.Dispatch(task.NewJobBeforeRunEvent(t, job))
 		res, err = t.Run(w.ctx, job)
-		event.Dispatch(task.NewJobAfterRunEvent(t, job))
 		if err != nil {
 			w.handleJobError(t, job, err)
 			return err
 		} else {
-			w.handleJobDone(t, job)
-			return nil
+			err = job.DispatchNextJobInChain(w.ctx)
+			if err != nil {
+				return err
+			} else {
+				event.Dispatch(task.NewJobAfterRunEvent(t, job))
+				w.handleJobDone(t, job)
+				return nil
+			}
 		}
 	}
 	// call func through middleware

@@ -72,6 +72,15 @@ func (b *BaseTask) Timeout() int64 {
 	return b.Option.Timeout
 }
 
+func (b *BaseTask) SetPayload(p []byte) *BaseTask {
+	b.Option.Payload = p
+	return b
+}
+
+func (b *BaseTask) Payload() []byte {
+	return b.Option.Payload
+}
+
 func (b *BaseTask) Beforeware() []Middleware {
 	return nil
 }
