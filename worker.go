@@ -72,7 +72,7 @@ func (w *worker) startPop() {
 		for {
 			select {
 			case <-w.stopRun:
-				w.logger.Info("stop sign, stop to pop message")
+				w.logger.Info("stop popping message")
 				return
 			case w.maxWorker <- struct{}{}:
 				go w.pop()
@@ -112,12 +112,11 @@ func (w *worker) startWork() {
 		for {
 			select {
 			case <-w.stopRun:
-				w.logger.Info("stop sign, stop to work")
+				w.logger.Info("stop working")
 				return
 			case j, ok := <-w.jobChannel:
 				// stop working when channel was closed
 				if !ok {
-					w.logger.Info("job channel has been close")
 					return
 				}
 				w.logger.Infof("job processing, name=%s, id=%s", j.Name(), j.Id())
