@@ -185,6 +185,7 @@ func (w *worker) perform(job *task.Job) (res any, err error) {
 		t = v.(task.Task)
 		res, err = w.performThroughMiddleware(t, job)
 	} else {
+		w.logger.Errorf("task not found for job, name=%s", job.Name())
 		_ = job.Delete(w.ctx)
 	}
 	return
@@ -222,7 +223,7 @@ func (w *worker) getNextJob() (*task.Job, error) {
 	for i := range w.sortedTasks {
 		t := w.sortedTasks[i]
 		passable := task.NewPopPassable()
-		if !w.shouldGetNextJob(t, passable) {
+		if !w.canGetNextJob(t, passable) {
 			continue
 		}
 		w.logger.Debugf("start to get job, name=%s", t.GetName())
@@ -235,12 +236,12 @@ func (w *worker) getNextJob() (*task.Job, error) {
 		// no message on queue, delay some seconds before next time
 		w.delayGetNextJob(t)
 		// exec callback func
-		passable.Callback()
+		passable.ExecCallback()
 	}
 	return nil, JobEmptyError
 }
 
-func (w *worker) shouldGetNextJob(t task.Task, pp *task.PopPassable) bool {
+func (w *worker) canGetNextJob(t task.Task, pp *task.PopPassable) bool {
 	if t.Status() == task.Disable {
 		return false
 	}
@@ -252,7 +253,7 @@ func (w *worker) shouldGetNextJob(t task.Task, pp *task.PopPassable) bool {
 	res := w.pl.Send(pp).
 		Through(task.CastMiddleware(t.Beforeware())...).
 		Then(func(_ any) any { return true })
-	// middleware handle should return a bool value
+	// middleware should return a bool value
 	can, ok := res.(bool)
 	if !ok || !can {
 		w.delayGetNextJob(t)

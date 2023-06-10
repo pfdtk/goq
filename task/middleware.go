@@ -29,7 +29,7 @@ func (p *PopPassable) GetCallback() func() {
 	return p.callback
 }
 
-func (p *PopPassable) Callback() {
+func (p *PopPassable) ExecCallback() {
 	if p.callback != nil {
 		p.callback()
 	}
