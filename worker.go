@@ -315,6 +315,5 @@ func (w *worker) handleJobTimeoutError(job *task.Job) {
 }
 
 func (w *worker) handleError(err error) {
-	w.logger.Error(err)
 	event.Dispatch(NewWorkErrorEvent(err))
 }

@@ -80,12 +80,16 @@ func TestServer_Start(t *testing.T) {
 		Logger:    log,
 	})
 	// connect
-	conn, _ := connect.NewRedisConn(&connect.RedisConf{
+	conn, err := connect.NewRedisConn(&connect.RedisConf{
 		Addr:     "127.0.0.1",
 		Port:     "6379",
 		DB:       1,
 		PoolSize: 1,
 	})
+	if err != nil {
+		t.Error(err)
+		return
+	}
 	server.AddRedisConnect("test", conn)
 	server.RegisterTask(NewTestTask())
 	server.RegisterTask(NewTestTask2())
