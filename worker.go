@@ -296,7 +296,7 @@ func (w *worker) handleJobError(t task.Task, job *task.Job, err error) {
 	w.logger.Infof("job fail, name=%s, id=%s", job.Name(), job.Id())
 	job.Failure()
 	var e error
-	if !job.IsReachMacAttempts() {
+	if !job.IsReachMaxAttempts() {
 		w.logger.Infof("job retry, name=%s, id=%s", job.Name(), job.Id())
 		e = job.Release(w.ctx, t.Backoff())
 	} else {

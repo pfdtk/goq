@@ -96,7 +96,7 @@ func (j *Job) TimeoutAt() time.Time {
 	return time.Now().Add(time.Duration(j.timeout) * time.Second)
 }
 
-func (j *Job) IsReachMacAttempts() bool {
+func (j *Job) IsReachMaxAttempts() bool {
 	return j.attempts >= j.retries
 }
 
