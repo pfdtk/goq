@@ -1,4 +1,4 @@
-package common
+package priority
 
 const (
 	P0 int = iota

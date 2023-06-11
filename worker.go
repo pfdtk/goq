@@ -288,7 +288,7 @@ func (w *worker) handleJobDone(_ task.Task, job *task.Job) {
 	job.Success()
 	err := job.Delete(w.ctx)
 	if err != nil {
-		event.Dispatch(NewWorkErrorEvent(err))
+		w.handleError(err)
 	}
 }
 

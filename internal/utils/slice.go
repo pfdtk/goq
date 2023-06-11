@@ -1,9 +1,11 @@
 package utils
 
-import "github.com/pfdtk/goq/common"
+import (
+	"github.com/pfdtk/goq/internal/types"
+)
 
 type InSliceT interface {
-	common.Int | common.Uint | common.Float | ~string | ~bool
+	types.Int | types.Uint | types.Float | ~string | ~bool
 }
 
 func InSlice[T InSliceT](item T, items []T) bool {
