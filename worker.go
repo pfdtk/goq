@@ -21,31 +21,31 @@ var (
 )
 
 type worker struct {
-	tasks        *sync.Map
-	sortedTasks  []task.Task
-	delayConsume map[string]time.Time
-	wg           *sync.WaitGroup
-	lock         sync.Mutex
-	stopRun      chan struct{}
-	maxWorker    chan struct{}
-	jobChannel   chan *task.Job
-	ctx          context.Context
-	logger       logger.Logger
-	pl           *pipeline.Pipeline
+	tasks            *sync.Map
+	sortedTasks      []task.Task
+	consumeDelayFlag map[string]time.Time
+	wg               *sync.WaitGroup
+	lock             sync.Mutex
+	stopRun          chan struct{}
+	maxWorker        chan struct{}
+	jobChannel       chan *task.Job
+	ctx              context.Context
+	logger           logger.Logger
+	pl               *pipeline.Pipeline
 }
 
 func newWorker(ctx context.Context, s *Server) *worker {
 	w := &worker{
-		wg:           &s.wg,
-		tasks:        &s.tasks,
-		sortedTasks:  task.SortTask(&s.tasks),
-		maxWorker:    make(chan struct{}, s.maxWorker),
-		stopRun:      make(chan struct{}),
-		jobChannel:   make(chan *task.Job, s.maxWorker),
-		ctx:          ctx,
-		logger:       s.logger,
-		pl:           pipeline.NewPipeline(),
-		delayConsume: make(map[string]time.Time),
+		wg:               &s.wg,
+		tasks:            &s.tasks,
+		sortedTasks:      task.SortTask(&s.tasks),
+		maxWorker:        make(chan struct{}, s.maxWorker),
+		stopRun:          make(chan struct{}),
+		jobChannel:       make(chan *task.Job, s.maxWorker),
+		ctx:              ctx,
+		logger:           s.logger,
+		pl:               pipeline.NewPipeline(),
+		consumeDelayFlag: make(map[string]time.Time),
 	}
 	return w
 }
@@ -234,7 +234,7 @@ func (w *worker) getNextJob() (*task.Job, error) {
 		}
 		w.logger.Debugf("no job for process, name=%s", t.GetName())
 		// no message on queue, delay some seconds before next time
-		w.delayGetNextJob(t)
+		w.waitSecondNextJob(t)
 		// exec callback func
 		passable.ExecCallback()
 	}
@@ -245,7 +245,7 @@ func (w *worker) canGetNextJob(t task.Task, pp *task.PopPassable) bool {
 	if t.Status() == task.Disable {
 		return false
 	}
-	delayAt, ok := w.delayConsume[t.OnQueue()]
+	delayAt, ok := w.consumeDelayFlag[t.OnQueue()]
 	if ok && time.Now().Before(delayAt) {
 		return false
 	}
@@ -256,17 +256,17 @@ func (w *worker) canGetNextJob(t task.Task, pp *task.PopPassable) bool {
 	// middleware should return a bool value
 	can, ok := res.(bool)
 	if !ok || !can {
-		w.delayGetNextJob(t)
+		w.waitSecondNextJob(t)
 		return false
 	}
 	return true
 }
 
-func (w *worker) delayGetNextJob(task task.Task) {
+func (w *worker) waitSecondNextJob(task task.Task) {
 	w.logger.Debugf("wait for 3 second before next time, name=%s", task.GetName())
 	w.lock.Lock()
 	defer w.lock.Unlock()
-	w.delayConsume[task.OnQueue()] = time.Now().Add(3 * time.Second)
+	w.consumeDelayFlag[task.OnQueue()] = time.Now().Add(3 * time.Second)
 }
 
 func (w *worker) getJob(t task.Task) (*task.Job, error) {
@@ -315,5 +315,6 @@ func (w *worker) handleJobTimeoutError(job *task.Job) {
 }
 
 func (w *worker) handleError(err error) {
+	w.logger.Error(err)
 	event.Dispatch(NewWorkErrorEvent(err))
 }
