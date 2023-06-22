@@ -56,12 +56,7 @@ func (m *migrate) stopMigrating() {
 func (m *migrate) migrateRedisTasks(t task.Task, cat MigrateType) {
 	m.wg.Add(1)
 	go func() {
-		defer func() {
-			m.wg.Done()
-			if x := recover(); x != nil {
-				m.handleError(e.NewPanicError(x))
-			}
-		}()
+		defer m.wg.Done()
 		timer := time.NewTimer(m.interval)
 		for {
 			select {
@@ -78,6 +73,11 @@ func (m *migrate) migrateRedisTasks(t task.Task, cat MigrateType) {
 }
 
 func (m *migrate) performMigrateTask(t task.Task, cat MigrateType) {
+	defer func() {
+		if x := recover(); x != nil {
+			m.handleError(e.NewPanicError(x))
+		}
+	}()
 	c := connect.GetRedis(t.OnConnect())
 	if c == nil {
 		m.handleError(fmt.Errorf("connect not found, name=%s", t.OnConnect()))
