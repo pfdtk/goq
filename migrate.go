@@ -2,14 +2,13 @@ package goq
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"github.com/pfdtk/goq/connect"
 	"github.com/pfdtk/goq/event"
+	e "github.com/pfdtk/goq/internal/errors"
 	rdq "github.com/pfdtk/goq/internal/queue/redis"
 	"github.com/pfdtk/goq/logger"
 	"github.com/pfdtk/goq/task"
-	"runtime/debug"
 	"sync"
 	"time"
 )
@@ -60,8 +59,7 @@ func (m *migrate) migrateRedisTasks(t task.Task, cat MigrateType) {
 		defer func() {
 			m.wg.Done()
 			if x := recover(); x != nil {
-				stack := fmt.Sprintf("panic: %+v;\nstack: %s", x, string(debug.Stack()))
-				m.handleError(errors.New(stack))
+				m.handleError(e.NewPanicError(x))
 			}
 		}()
 		timer := time.NewTimer(m.interval)
@@ -82,7 +80,7 @@ func (m *migrate) migrateRedisTasks(t task.Task, cat MigrateType) {
 func (m *migrate) performMigrateTask(t task.Task, cat MigrateType) {
 	c := connect.GetRedis(t.OnConnect())
 	if c == nil {
-		m.handleError(errors.New(fmt.Sprintf("connect not found, name=%s", t.OnConnect())))
+		m.handleError(fmt.Errorf("connect not found, name=%s", t.OnConnect()))
 		return
 	}
 	q := rdq.NewRedisQueue(c)

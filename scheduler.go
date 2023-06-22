@@ -4,12 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"github.com/pfdtk/goq/event"
+	e "github.com/pfdtk/goq/internal/errors"
 	"github.com/pfdtk/goq/logger"
 	"github.com/pfdtk/goq/task"
 	"github.com/robfig/cron/v3"
-	"runtime/debug"
 	"time"
 )
 
@@ -65,8 +64,7 @@ func (s *scheduler) register(spec string, t task.Task) error {
 		var err error
 		defer func() {
 			if x := recover(); x != nil {
-				stack := fmt.Sprintf("panic: %+v;\nstack: %s", x, string(debug.Stack()))
-				err = errors.Join(err, errors.New(stack))
+				err = errors.Join(err, e.NewPanicError(x))
 			}
 			if err != nil {
 				event.Dispatch(NewSchedulerErrorEvent(err))

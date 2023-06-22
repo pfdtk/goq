@@ -3,13 +3,12 @@ package goq
 import (
 	"context"
 	"errors"
-	"fmt"
 	"github.com/pfdtk/goq/event"
+	e "github.com/pfdtk/goq/internal/errors"
 	qm "github.com/pfdtk/goq/internal/queue"
 	"github.com/pfdtk/goq/logger"
 	"github.com/pfdtk/goq/pipeline"
 	"github.com/pfdtk/goq/task"
-	"runtime/debug"
 	"sync"
 	"time"
 )
@@ -85,8 +84,7 @@ func (w *worker) pop() {
 	var err error
 	defer func() {
 		if x := recover(); x != nil {
-			stack := fmt.Sprintf("panic: %+v;\nstack: %s", x, string(debug.Stack()))
-			err = errors.Join(err, errors.New(stack))
+			err = errors.Join(err, e.NewPanicError(x))
 		}
 		if err != nil {
 			time.Sleep(time.Second)
@@ -130,9 +128,7 @@ func (w *worker) runJob(job *task.Job) {
 	defer func() {
 		<-w.maxWorker
 		if x := recover(); x != nil {
-			stack := fmt.Sprintf("panic: %+v;\nstack: %s", x, string(debug.Stack()))
-			err := errors.New(stack)
-			w.handleError(err)
+			w.handleError(e.NewPanicError(x))
 		}
 	}()
 	fn := func(prh chan any) {
@@ -171,8 +167,7 @@ func (w *worker) perform(job *task.Job) (res any, err error) {
 	// recover err from tasks, so that program will not exit
 	defer func() {
 		if x := recover(); x != nil {
-			stack := fmt.Sprintf("panic: %+v;\nstack: %s", x, string(debug.Stack()))
-			err = errors.New(stack)
+			err = e.NewPanicError(x)
 			if t != nil {
 				w.handleJobError(t, job, err)
 			} else {
@@ -293,23 +288,23 @@ func (w *worker) handleJobDone(_ task.Task, job *task.Job) {
 }
 
 func (w *worker) handleJobError(t task.Task, job *task.Job, err error) {
-	w.logger.Infof("job fail, name=%s, id=%s", job.Name(), job.Id())
+	w.logger.Warnf("job fail, name=%s, id=%s", job.Name(), job.Id())
 	job.Failure()
-	var e error
+	var er error
 	if !job.IsReachMaxAttempts() {
 		w.logger.Infof("job retry, name=%s, id=%s", job.Name(), job.Id())
-		e = job.Release(w.ctx, t.Backoff())
+		er = job.Release(w.ctx, t.Backoff())
 	} else {
-		e = job.Delete(w.ctx)
+		er = job.Delete(w.ctx)
 	}
-	if e != nil {
-		err = errors.Join(err, e)
+	if er != nil {
+		err = errors.Join(err, er)
 	}
 	event.Dispatch(task.NewJobErrorEvent(t, job, err))
 }
 
 func (w *worker) handleJobTimeoutError(job *task.Job) {
-	w.logger.Infof("job exec timeout, id=%s, name=%s", job.Id(), job.Name())
+	w.logger.Warnf("job exec timeout, id=%s, name=%s", job.Id(), job.Name())
 	job.Failure()
 	event.Dispatch(task.NewJobExecTimeoutEvent(job))
 }
