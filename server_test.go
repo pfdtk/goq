@@ -76,7 +76,7 @@ func TestServer_Start(t *testing.T) {
 	log := z.Sugar()
 	log.Info("xx")
 	server := NewServer(&ServerConfig{
-		MaxWorker: 2,
+		MaxWorker: 5,
 		Logger:    log,
 	})
 	// connect
@@ -93,6 +93,6 @@ func TestServer_Start(t *testing.T) {
 	server.AddRedisConnect("test", conn)
 	server.RegisterTask(NewTestTask())
 	server.RegisterTask(NewTestTask2())
-	//server.RegisterCronTask("* * * * *", NewTestTask(log))
+	//server.RegisterCronTask("* * * * *", NewTestTask())
 	server.MustStart(context.Background())
 }

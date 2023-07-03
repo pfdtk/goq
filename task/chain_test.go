@@ -15,9 +15,9 @@ func TestChain_Dispatch(t *testing.T) {
 	})
 	connect.AddRedisConnect("test", conn)
 
-	t1 := NewTask().SetPayload([]byte("test chain 1"))
-	t2 := NewTask().SetPayload([]byte("test chain 2"))
-	t3 := NewTask().SetPayload([]byte("test chain 3"))
+	t1 := NewTask().Message([]byte("test chain 1"))
+	t2 := NewTask().Message([]byte("test chain 2"))
+	t3 := NewTask().Message([]byte("test chain 3"))
 	c := NewChain(t1, t2, t3)
 	_ = c.Dispatch()
 }
