@@ -137,5 +137,10 @@ func (s *Queue) Release(
 }
 
 func (s *Queue) Delete(ctx context.Context, queue string, message *queue.Message) error {
-	return nil
+	p := &sqs.DeleteMessageInput{
+		QueueUrl:      s.getQueueUrl(queue),
+		ReceiptHandle: &message.ReceiptHandle,
+	}
+	_, err := s.client.DeleteMessage(ctx, p)
+	return err
 }
