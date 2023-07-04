@@ -6,16 +6,30 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 )
 
-// SqsConf TODO
 type SqsConf struct {
+	Region string
+	Prefix string
+}
+
+type SqsClient struct {
+	client  *sqs.Client
+	sqsConf *SqsConf
 }
 
 // NewSqsConn new an aws sqs client
-func NewSqsConn(_ *SqsConf) (*sqs.Client, error) {
-	cfg, err := config.LoadDefaultConfig(context.TODO())
+func NewSqsConn(c *SqsConf) (*SqsClient, error) {
+	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion(c.Region))
 	if err != nil {
 		return nil, err
 	}
 	client := sqs.NewFromConfig(cfg)
-	return client, nil
+	return &SqsClient{client: client, sqsConf: c}, nil
+}
+
+func (s *SqsClient) SqsClient() *sqs.Client {
+	return s.client
+}
+
+func (s *SqsClient) SqsConf() *SqsConf {
+	return s.sqsConf
 }

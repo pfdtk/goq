@@ -1,7 +1,6 @@
 package connect
 
 import (
-	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/redis/go-redis/v9"
 	"sync"
 )
@@ -23,7 +22,7 @@ func AddRedisConnect(name string, r *redis.Client) {
 	conn.Store(name, r)
 }
 
-func AddSqsConnect(name string, s *sqs.Client) {
+func AddSqsConnect(name string, s *SqsClient) {
 	conn.Store(name, s)
 }
 
@@ -43,10 +42,10 @@ func GetRedis(name string) *redis.Client {
 	return c.(*redis.Client)
 }
 
-func GetSqs(name string) *sqs.Client {
+func GetSqs(name string) *SqsClient {
 	c, ok := conn.Load(name)
 	if !ok {
 		return nil
 	}
-	return c.(*sqs.Client)
+	return c.(*SqsClient)
 }

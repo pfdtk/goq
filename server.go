@@ -2,7 +2,6 @@ package goq
 
 import (
 	"context"
-	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/pfdtk/goq/connect"
 	"github.com/pfdtk/goq/event"
 	"github.com/pfdtk/goq/logger"
@@ -89,7 +88,7 @@ func (s *Server) AddRedisConnect(name string, conn *redis.Client) {
 	connect.AddRedisConnect(name, conn)
 }
 
-func (s *Server) AddSqsConnect(name string, conn *sqs.Client) {
+func (s *Server) AddSqsConnect(name string, conn *connect.SqsClient) {
 	connect.AddSqsConnect(name, conn)
 }
 
