@@ -29,4 +29,6 @@ type Message struct {
 	Chain []*Message `json:"chain"`
 	// use for visibility timeout and move raw message back to list
 	Reserved string `json:"-"`
+	// sqs ReceiptHandle
+	ReceiptHandle string `json:"-"`
 }

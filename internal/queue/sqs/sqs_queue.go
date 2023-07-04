@@ -90,23 +90,30 @@ func (s *Queue) Pop(ctx context.Context, qname string) (*queue.Message, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	message := res.Messages[0]
+
 	val, ok := message.Attributes["ApproximateReceiveCount"]
+	if !ok {
+		return nil, errors.New("attr ApproximateReceiveCount not found")
+	}
 	attempts, err := strconv.ParseUint(val, 10, 64)
 	if err != nil {
 		return nil, err
 	}
-	if !ok {
-		return nil, errors.New("attr ApproximateReceiveCount not found")
-	}
+
 	body := *message.Body
+
 	msg := queue.Message{}
 	err = json.Unmarshal([]byte(body), &msg)
 	if err != nil {
 		return nil, err
 	}
+
 	msg.Attempts = uint(attempts)
 	msg.Reserved = body
+	msg.ReceiptHandle = *message.ReceiptHandle
+
 	return &msg, nil
 }
 
@@ -116,7 +123,17 @@ func (s *Queue) Release(
 	message *queue.Message,
 	at time.Time) error {
 
-	return nil
+	ft := at.Unix()
+	nt := time.Now().Unix()
+	delay := ft - nt
+
+	p := &sqs.ChangeMessageVisibilityInput{
+		QueueUrl:          s.getQueueUrl(queue),
+		ReceiptHandle:     &message.ReceiptHandle,
+		VisibilityTimeout: int32(delay),
+	}
+	_, err := s.client.ChangeMessageVisibility(ctx, p)
+	return err
 }
 
 func (s *Queue) Delete(ctx context.Context, queue string, message *queue.Message) error {
