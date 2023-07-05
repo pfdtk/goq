@@ -1,9 +1,7 @@
 package event
 
 import (
-	"errors"
-	"fmt"
-	"runtime/debug"
+	"github.com/pfdtk/goq/internal/errors"
 	"sync"
 )
 
@@ -77,8 +75,7 @@ func Dispatch(e Event) {
 func RecoverDispatch(e Event) (err error) {
 	defer func() {
 		if x := recover(); x != nil {
-			stack := fmt.Sprintf("panic: %+v;\nstack: %s", x, string(debug.Stack()))
-			err = errors.New(stack)
+			err = errors.NewPanicError(x)
 		}
 	}()
 	manager.Dispatch(e)
