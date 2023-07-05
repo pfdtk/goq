@@ -3,6 +3,7 @@ package sqs
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/aws/aws-sdk-go-v2/service/sqs/types"
 	"github.com/pfdtk/goq/connect"
@@ -10,6 +11,8 @@ import (
 	"strconv"
 	"time"
 )
+
+var EmptyMessageError = errors.New("empty message")
 
 type Queue struct {
 	client *sqs.Client
@@ -80,6 +83,9 @@ func (s *Queue) Pop(ctx context.Context, qname string) (*queue.Message, error) {
 	res, err := s.client.ReceiveMessage(ctx, p)
 	if err != nil {
 		return nil, err
+	}
+	if len(res.Messages) == 0 {
+		return nil, EmptyMessageError
 	}
 	message := res.Messages[0]
 	attempts, err := strconv.ParseUint(message.Attributes["ApproximateReceiveCount"], 10, 64)
