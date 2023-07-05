@@ -3,7 +3,6 @@ package sqs
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/aws/aws-sdk-go-v2/service/sqs/types"
 	"github.com/pfdtk/goq/connect"
@@ -35,12 +34,7 @@ func (s *Queue) Size(ctx context.Context, queue string) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	attr := res.Attributes
-	val, ok := attr["ApproximateNumberOfMessages"]
-	if !ok {
-		return 0, errors.New("attr ApproximateNumberOfMessages not found")
-	}
-	count, err := strconv.ParseInt(val, 10, 64)
+	count, err := strconv.ParseInt(res.Attributes["ApproximateNumberOfMessages"], 10, 64)
 	if err != nil {
 		return 0, err
 	}
@@ -66,54 +60,40 @@ func (s *Queue) Later(ctx context.Context, message *queue.Message, at time.Time)
 	if err != nil {
 		return err
 	}
-	ft := at.Unix()
-	nt := time.Now().Unix()
-	delay := ft - nt
-
 	body := string(bytes)
+	delay := at.Unix() - time.Now().Unix()
 	p := &sqs.SendMessageInput{
 		QueueUrl:     s.getQueueUrl(message.Queue),
 		MessageBody:  &body,
 		DelaySeconds: int32(delay),
 	}
-
 	_, err = s.client.SendMessage(ctx, p)
 	return err
 }
 
 func (s *Queue) Pop(ctx context.Context, qname string) (*queue.Message, error) {
+	attrNames := []types.QueueAttributeName{types.QueueAttributeName("ApproximateReceiveCount")}
 	p := &sqs.ReceiveMessageInput{
 		QueueUrl:       s.getQueueUrl(qname),
-		AttributeNames: []types.QueueAttributeName{types.QueueAttributeName("ApproximateReceiveCount")},
+		AttributeNames: attrNames,
 	}
 	res, err := s.client.ReceiveMessage(ctx, p)
 	if err != nil {
 		return nil, err
 	}
-
 	message := res.Messages[0]
-
-	val, ok := message.Attributes["ApproximateReceiveCount"]
-	if !ok {
-		return nil, errors.New("attr ApproximateReceiveCount not found")
-	}
-	attempts, err := strconv.ParseUint(val, 10, 64)
+	attempts, err := strconv.ParseUint(message.Attributes["ApproximateReceiveCount"], 10, 64)
 	if err != nil {
 		return nil, err
 	}
-
-	body := *message.Body
-
 	msg := queue.Message{}
-	err = json.Unmarshal([]byte(body), &msg)
+	err = json.Unmarshal([]byte(*message.Body), &msg)
 	if err != nil {
 		return nil, err
 	}
-
 	msg.Attempts = uint(attempts)
-	msg.Reserved = body
+	msg.Reserved = *message.Body
 	msg.ReceiptHandle = *message.ReceiptHandle
-
 	return &msg, nil
 }
 
@@ -123,10 +103,7 @@ func (s *Queue) Release(
 	message *queue.Message,
 	at time.Time) error {
 
-	ft := at.Unix()
-	nt := time.Now().Unix()
-	delay := ft - nt
-
+	delay := at.Unix() - time.Now().Unix()
 	p := &sqs.ChangeMessageVisibilityInput{
 		QueueUrl:          s.getQueueUrl(queue),
 		ReceiptHandle:     &message.ReceiptHandle,
