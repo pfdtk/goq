@@ -36,6 +36,7 @@ type Job struct {
 	// callback
 	errFunc     []func()
 	successFunc []func()
+	hasRelease  bool
 }
 
 func NewJob(q queue.Queue, msg *queue.Message) *Job {
@@ -101,8 +102,14 @@ func (j *Job) IsReachMaxAttempts() bool {
 }
 
 func (j *Job) Release(ctx context.Context, backoff uint) (err error) {
-	at := time.Now().Add(time.Duration(backoff) * time.Second)
-	return j.queue.Release(ctx, j.QueueName(), j.RawMessage(), at)
+	if !j.hasRelease {
+		at := time.Now().Add(time.Duration(backoff) * time.Second)
+		err = j.queue.Release(ctx, j.QueueName(), j.RawMessage(), at)
+		if err != nil {
+			j.hasRelease = true
+		}
+	}
+	return
 }
 
 // Delete the job from the queue

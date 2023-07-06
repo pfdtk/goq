@@ -3,6 +3,7 @@ package goq
 import (
 	"context"
 	"errors"
+	"github.com/pfdtk/goq/backend"
 	"github.com/pfdtk/goq/event"
 	e "github.com/pfdtk/goq/internal/errors"
 	qm "github.com/pfdtk/goq/internal/queue"
@@ -125,86 +126,69 @@ func (w *worker) startWork() {
 }
 
 func (w *worker) runJob(job *task.Job) {
+	var t task.Task
 	defer func() {
 		<-w.maxWorker
 		if x := recover(); x != nil {
-			w.handleError(e.NewPanicError(x))
-		}
-	}()
-	fn := func(prh chan any) {
-		res, err := w.perform(job)
-		if err == nil {
-			prh <- res
-		} else {
-			prh <- err
-		}
-	}
-	_, err := w.runJobWithTimeout(fn, job.TimeoutAt())
-	if err != nil {
-		w.handleJobTimeoutError(job)
-	}
-}
-
-func (w *worker) runJobWithTimeout(
-	fn func(prh chan any), timeoutAt time.Time) (res any, err error) {
-	ctx, cancel := context.WithDeadline(w.ctx, timeoutAt)
-	defer func() {
-		cancel()
-	}()
-	prh := make(chan any, 1)
-	go fn(prh)
-	select {
-	case res = <-prh:
-		return
-	case <-ctx.Done():
-		err = JobTimeoutError
-		return
-	}
-}
-
-func (w *worker) perform(job *task.Job) (res any, err error) {
-	var t task.Task = nil
-	// recover err from tasks, so that program will not exit
-	defer func() {
-		if x := recover(); x != nil {
-			err = e.NewPanicError(x)
 			if t != nil {
-				w.handleJobError(t, job, err)
+				w.handleJobError(t, job, e.NewPanicError(x))
 			} else {
-				w.handleError(err)
+				w.handleError(e.NewPanicError(x))
 			}
 		}
 	}()
 	v, ok := w.tasks.Load(job.Name())
-	if ok {
-		t = v.(task.Task)
-		res, err = w.performThroughMiddleware(t, job)
-	} else {
+	if !ok {
 		w.logger.Errorf("task not found for job, name=%s", job.Name())
 		_ = job.Delete(w.ctx)
+		return
 	}
-	return
+	t = v.(task.Task)
+	w.runJobWithTimeout(t, job)
 }
 
-func (w *worker) performThroughMiddleware(
-	t task.Task, job *task.Job) (res any, err error) {
+func (w *worker) runJobWithTimeout(t task.Task, job *task.Job) {
+	// defined timeout
+	ctx, cancel := context.WithDeadline(w.ctx, job.TimeoutAt())
+	defer func() {
+		cancel()
+	}()
+	// perform in goroutine
+	prh := make(chan any, 1)
+	go func(prh chan any) {
+		w.perform(t, job)
+		prh <- struct{}{}
+	}(prh)
+	select {
+	case <-prh:
+		return
+	case <-ctx.Done():
+		w.handleJobError(t, job, JobTimeoutError)
+		return
+	}
+}
+
+func (w *worker) perform(t task.Task, job *task.Job) {
+	// recover err from tasks, so that program will not exit
+	defer func() {
+		if x := recover(); x != nil {
+			w.handleJobError(t, job, e.NewPanicError(x))
+		}
+	}()
 	// task runner
 	fn := func(_ any) any {
-		event.Dispatch(task.NewJobBeforeRunEvent(t, job))
-		res, err = t.Run(w.ctx, job)
-		if err != nil {
-			w.handleJobError(t, job, err)
-			return err
-		} else {
+		w.handleJobStart(t, job)
+		_, err := t.Run(w.ctx, job)
+		if err == nil {
 			err = job.DispatchChain(w.ctx)
-			if err != nil {
-				return err
-			} else {
-				event.Dispatch(task.NewJobAfterRunEvent(t, job))
+			if err == nil {
 				w.handleJobDone(t, job)
-				return nil
 			}
 		}
+		if err != nil {
+			w.handleJobError(t, job, err)
+		}
+		return err
 	}
 	// call func through middleware
 	w.pl.Send(task.NewRunPassable(t, job)).
@@ -278,35 +262,33 @@ func (w *worker) getJob(t task.Task) (*task.Job, error) {
 	return nil, err
 }
 
-func (w *worker) handleJobDone(_ task.Task, job *task.Job) {
+func (w *worker) handleJobStart(t task.Task, job *task.Job) {
+	_ = backend.Get().Started(job.RawMessage())
+	event.Dispatch(task.NewJobBeforeRunEvent(t, job))
+}
+
+func (w *worker) handleJobDone(t task.Task, job *task.Job) {
 	w.logger.Infof("job processed, name=%s, id=%s", job.Name(), job.Id())
 	job.Success()
-	err := job.Delete(w.ctx)
-	if err != nil {
-		w.handleError(err)
-	}
+	// ack
+	_ = job.Delete(w.ctx)
+	_ = backend.Get().Success(job.RawMessage())
+	event.Dispatch(task.NewJobAfterRunEvent(t, job))
 }
 
 func (w *worker) handleJobError(t task.Task, job *task.Job, err error) {
 	w.logger.Warnf("job fail, name=%s, id=%s", job.Name(), job.Id())
 	job.Failure()
-	var er error
 	if !job.IsReachMaxAttempts() {
 		w.logger.Infof("job retry, name=%s, id=%s", job.Name(), job.Id())
-		er = job.Release(w.ctx, t.Backoff())
+		// if not success, message will visibility again after ack timeout
+		_ = job.Release(w.ctx, t.Backoff())
 	} else {
-		er = job.Delete(w.ctx)
-	}
-	if er != nil {
-		err = errors.Join(err, er)
+		// ack
+		_ = job.Delete(w.ctx)
+		_ = backend.Get().Failure(job.RawMessage(), err)
 	}
 	event.Dispatch(task.NewJobErrorEvent(t, job, err))
-}
-
-func (w *worker) handleJobTimeoutError(job *task.Job) {
-	w.logger.Warnf("job exec timeout, id=%s, name=%s", job.Id(), job.Name())
-	job.Failure()
-	event.Dispatch(task.NewJobExecTimeoutEvent(job))
 }
 
 func (w *worker) handleError(err error) {
