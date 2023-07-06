@@ -20,7 +20,7 @@ func (b Backend) Success(_ *queue.Message) error {
 	return nil
 }
 
-func (b Backend) Failure(_ *queue.Message) error {
+func (b Backend) Failure(_ *queue.Message, _ error) error {
 	return nil
 }
 

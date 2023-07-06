@@ -20,10 +20,25 @@ type TaskState struct {
 	State     State     `json:"state"`
 	Error     string    `json:"error"`
 	CreatedAt time.Time `json:"created_at"`
-	UpdateAt  time.Time `json:"update_at"`
-	TTL       int64     `json:"-"`
 }
 
-func NewTaskState(msg *queue.Message) *TaskState {
-	return nil
+func NewTaskState(msg *queue.Message, s State) *TaskState {
+	st := &TaskState{
+		TaskId:    msg.ID,
+		TaskName:  msg.Type,
+		State:     s,
+		CreatedAt: time.Now(),
+	}
+	return st
+}
+
+func NewFailureTaskState(msg *queue.Message, err error) *TaskState {
+	st := &TaskState{
+		TaskId:    msg.ID,
+		TaskName:  msg.Type,
+		State:     Failure,
+		Error:     err.Error(),
+		CreatedAt: time.Now(),
+	}
+	return st
 }

@@ -11,7 +11,7 @@ type Backend interface {
 	Pending(message *queue.Message) error
 	Started(message *queue.Message) error
 	Success(message *queue.Message) error
-	Failure(message *queue.Message) error
+	Failure(message *queue.Message, err error) error
 	// State get state of message
 	State(messageId string) (state.State, error)
 }

@@ -1,7 +1,9 @@
 package redis
 
 import (
+	"errors"
 	"github.com/pfdtk/goq/connect"
+	"github.com/pfdtk/goq/queue"
 	"testing"
 )
 
@@ -12,5 +14,19 @@ func TestNewRedisBackend(t *testing.T) {
 		DB:       1,
 		PoolSize: 2,
 	})
-	NewRedisBackend(conn)
+	b := NewRedisBackend(conn)
+	msg := &queue.Message{ID: "x1", Type: "type"}
+
+	_ = b.Pending(msg)
+	ss, _ := b.State("x1")
+	t.Log(ss)
+	_ = b.Started(msg)
+	ss, _ = b.State("x1")
+	t.Log(ss)
+	_ = b.Success(msg)
+	ss, _ = b.State("x1")
+	t.Log(ss)
+	_ = b.Failure(msg, errors.New("test"))
+	ss, _ = b.State("x1")
+	t.Log(ss)
 }
