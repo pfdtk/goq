@@ -22,8 +22,8 @@ func (c *Chain) Dispatch(opt ...DispatchOptFunc) (err error) {
 }
 
 func (c *Chain) DispatchContext(ctx context.Context, optsFun ...DispatchOptFunc) (err error) {
-	if len(c.task) < 2 {
-		return errors.New("task < 2")
+	if len(c.task) < 1 {
+		return errors.New("task < 1")
 	}
 	first := c.convertMessage(c.task[0])
 	next := c.convertMessages(c.task[1:]...)
