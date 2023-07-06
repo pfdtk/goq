@@ -159,6 +159,7 @@ func (w *worker) runJobWithTimeout(t task.Task, job *task.Job) {
 		w.perform(t, job)
 		prh <- struct{}{}
 	}(prh)
+	// handle timeout
 	select {
 	case <-prh:
 		return
@@ -262,6 +263,20 @@ func (w *worker) getJob(t task.Task) (*task.Job, error) {
 	return nil, err
 }
 
+func (w *worker) retry(t task.Task, job *task.Job) {
+	w.logger.Infof("job retry, name=%s, id=%s", job.Name(), job.Id())
+	// if not success, message will visibility again after ack timeout
+	if err := job.Release(w.ctx, t.Backoff()); err != nil {
+		w.handleError(err)
+	}
+}
+
+func (w *worker) ackJob(job *task.Job) {
+	if err := job.Delete(w.ctx); err != nil {
+		w.handleError(err)
+	}
+}
+
 func (w *worker) handleJobStart(t task.Task, job *task.Job) {
 	_ = backend.Get().Started(job.RawMessage())
 	event.Dispatch(task.NewJobBeforeRunEvent(t, job))
@@ -270,10 +285,7 @@ func (w *worker) handleJobStart(t task.Task, job *task.Job) {
 func (w *worker) handleJobDone(t task.Task, job *task.Job) {
 	w.logger.Infof("job processed, name=%s, id=%s", job.Name(), job.Id())
 	job.Success()
-	// ack
-	if err := job.Delete(w.ctx); err != nil {
-		w.handleError(err)
-	}
+	w.ackJob(job)
 	_ = backend.Get().Success(job.RawMessage())
 	event.Dispatch(task.NewJobAfterRunEvent(t, job))
 }
@@ -282,16 +294,9 @@ func (w *worker) handleJobError(t task.Task, job *task.Job, err error) {
 	w.logger.Warnf("job fail, name=%s, id=%s", job.Name(), job.Id())
 	job.Failure()
 	if !job.IsReachMaxAttempts() {
-		w.logger.Infof("job retry, name=%s, id=%s", job.Name(), job.Id())
-		// if not success, message will visibility again after ack timeout
-		if err := job.Release(w.ctx, t.Backoff()); err != nil {
-			w.handleError(err)
-		}
+		w.retry(t, job)
 	} else {
-		// ack
-		if err := job.Delete(w.ctx); err != nil {
-			w.handleError(err)
-		}
+		w.ackJob(job)
 		_ = backend.Get().Failure(job.RawMessage(), err)
 	}
 	event.Dispatch(task.NewJobErrorEvent(t, job, err))
