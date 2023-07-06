@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"github.com/google/uuid"
+	"github.com/pfdtk/goq/backend"
 	"github.com/pfdtk/goq/event"
 	qm "github.com/pfdtk/goq/internal/queue"
 	"github.com/pfdtk/goq/queue"
@@ -128,6 +129,7 @@ func (b *BaseTask) DispatchContext(
 	}
 	if err == nil {
 		event.Dispatch(NewJobAddEvent(b, message))
+		_ = backend.Get().Pending(message)
 	}
 	return
 }

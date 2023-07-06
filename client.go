@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"github.com/google/uuid"
+	"github.com/pfdtk/goq/backend"
 	"github.com/pfdtk/goq/connect"
 	"github.com/pfdtk/goq/event"
 	qm "github.com/pfdtk/goq/internal/queue"
@@ -65,6 +66,7 @@ func DispatchContext(
 	}
 	if err == nil {
 		event.Dispatch(task.NewJobAddEvent(t, message))
+		_ = backend.Get().Pending(message)
 	}
 	return
 }
@@ -86,6 +88,10 @@ func (c *Client) AddRedisConnect(name string, conn *redis.Client) {
 
 func (c *Client) AddSqsConnect(name string, conn *connect.SqsClient) {
 	connect.AddSqsConnect(name, conn)
+}
+
+func (c *Client) RegisterBackend(b backend.Backend) {
+	backend.RegisterBackend(b)
 }
 
 func (c *Client) Dispatch(

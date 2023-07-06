@@ -2,6 +2,7 @@ package goq
 
 import (
 	"context"
+	"github.com/pfdtk/goq/backend"
 	"github.com/pfdtk/goq/connect"
 	"github.com/pfdtk/goq/event"
 	"github.com/pfdtk/goq/logger"
@@ -94,6 +95,10 @@ func (s *Server) AddSqsConnect(name string, conn *connect.SqsClient) {
 
 func (s *Server) Listen(e event.Event, h event.Handler) {
 	event.Listen(e, h)
+}
+
+func (s *Server) RegisterBackend(b backend.Backend) {
+	backend.RegisterBackend(b)
 }
 
 func (s *Server) waitSignals() {
