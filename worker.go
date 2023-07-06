@@ -18,6 +18,7 @@ var (
 	JobEmptyError      = errors.New("no jobs are ready for processing")
 	JobTimeoutError    = errors.New("job process timeout")
 	QueueNotFoundError = errors.New("queue not found")
+	TaskNotFoundError  = errors.New("task not found")
 )
 
 type worker struct {
@@ -139,8 +140,7 @@ func (w *worker) runJob(job *task.Job) {
 	}()
 	v, ok := w.tasks.Load(job.Name())
 	if !ok {
-		w.logger.Errorf("task not found for job, name=%s", job.Name())
-		_ = job.Delete(w.ctx)
+		w.handleError(TaskNotFoundError)
 		return
 	}
 	t = v.(task.Task)
@@ -271,7 +271,9 @@ func (w *worker) handleJobDone(t task.Task, job *task.Job) {
 	w.logger.Infof("job processed, name=%s, id=%s", job.Name(), job.Id())
 	job.Success()
 	// ack
-	_ = job.Delete(w.ctx)
+	if err := job.Delete(w.ctx); err != nil {
+		w.handleError(err)
+	}
 	_ = backend.Get().Success(job.RawMessage())
 	event.Dispatch(task.NewJobAfterRunEvent(t, job))
 }
@@ -282,10 +284,14 @@ func (w *worker) handleJobError(t task.Task, job *task.Job, err error) {
 	if !job.IsReachMaxAttempts() {
 		w.logger.Infof("job retry, name=%s, id=%s", job.Name(), job.Id())
 		// if not success, message will visibility again after ack timeout
-		_ = job.Release(w.ctx, t.Backoff())
+		if err := job.Release(w.ctx, t.Backoff()); err != nil {
+			w.handleError(err)
+		}
 	} else {
 		// ack
-		_ = job.Delete(w.ctx)
+		if err := job.Delete(w.ctx); err != nil {
+			w.handleError(err)
+		}
 		_ = backend.Get().Failure(job.RawMessage(), err)
 	}
 	event.Dispatch(task.NewJobErrorEvent(t, job, err))
