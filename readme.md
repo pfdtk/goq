@@ -13,7 +13,7 @@ another golang distributed task queue
 - unique with ttl
 - chain
 - redis
-- sqs [todo]
+- sqs
 
 ### server example
 
