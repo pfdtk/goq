@@ -18,7 +18,7 @@ type DemoTask struct {
 func NewDemoTask() *DemoTask {
 	option := &task.Option{
 		Name:      "test",
-		OnConnect: "test",
+		OnConnect: Conn,
 		QueueType: queue.Redis,
 		OnQueue:   "default",
 		Status:    task.Active,
