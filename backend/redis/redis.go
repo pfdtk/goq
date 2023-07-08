@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/pfdtk/goq/backend/state"
+	"github.com/pfdtk/goq/connect"
 	"github.com/pfdtk/goq/queue"
 	"github.com/redis/go-redis/v9"
 	"time"
@@ -15,11 +16,13 @@ type Backend struct {
 	ttl    time.Duration
 }
 
-func NewRedisBackend(conn *redis.Client) *Backend {
+// NewRedisBackend before new, you should call connect.AddRedisConnect fist
+func NewRedisBackend(conn string) *Backend {
+	client := connect.GetRedis(conn)
 	return &Backend{
-		client: conn,
+		client: client,
 		ctx:    context.Background(),
-		ttl:    24 * time.Hour,
+		ttl:    6 * time.Hour,
 	}
 }
 

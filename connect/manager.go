@@ -5,13 +5,6 @@ import (
 	"sync"
 )
 
-type ConnType string
-
-const (
-	Redis ConnType = "redis"
-	Sqs   ConnType = "sqs"
-)
-
 var conn sync.Map
 
 func AddConnect(name string, c any) {

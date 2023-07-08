@@ -14,7 +14,8 @@ func TestNewRedisBackend(t *testing.T) {
 		DB:       1,
 		PoolSize: 2,
 	})
-	b := NewRedisBackend(conn)
+	connect.AddRedisConnect("test", conn)
+	b := NewRedisBackend("test")
 	msg := &queue.Message{ID: "x1", Type: "type"}
 
 	_ = b.Pending(msg)
