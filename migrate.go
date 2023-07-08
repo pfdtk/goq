@@ -60,7 +60,7 @@ func (m *migrate) migrateRedisTasks(t task.Task, cat MigrateType) {
 		for {
 			select {
 			case <-m.stopRun:
-				m.logger.Infof("migrate stopped, task=%s, name=%s", cat, t.GetName())
+				m.logger.Infof("migrate stopped, type=%s, name=%s", cat, t.GetName())
 				timer.Stop()
 				return
 			case <-timer.C:
@@ -86,10 +86,10 @@ func (m *migrate) performMigrateTask(t task.Task, cat MigrateType) {
 	err := q.Migrate(m.ctx, from, moveTo)
 
 	if err != nil {
-		m.logger.Errorf("migrate error, task=%s, queue=%s", cat, t.OnQueue())
+		m.logger.Errorf("migrate error, type=%s, queue=%s", cat, t.OnQueue())
 		m.handleError(err)
 	} else {
-		m.logger.Infof("migrate success, task=%s, queue=%s", cat, t.OnQueue())
+		m.logger.Infof("migrate success, type=%s, queue=%s", cat, t.OnQueue())
 	}
 }
 
