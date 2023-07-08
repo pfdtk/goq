@@ -22,31 +22,31 @@ var (
 )
 
 type worker struct {
-	tasks            *sync.Map
-	sortedTasks      []task.Task
-	consumeDelayFlag map[string]time.Time
-	wg               *sync.WaitGroup
-	lock             sync.Mutex
-	stopRun          chan struct{}
-	maxWorker        chan struct{}
-	jobChannel       chan *task.Job
-	ctx              context.Context
-	logger           logger.Logger
-	pl               *pipeline.Pipeline
+	tasks        *sync.Map
+	sortedTasks  []task.Task
+	popDelayFlag map[string]time.Time
+	wg           *sync.WaitGroup
+	lock         sync.Mutex
+	stopRun      chan struct{}
+	maxWorker    chan struct{}
+	jobChannel   chan *task.Job
+	ctx          context.Context
+	logger       logger.Logger
+	pl           *pipeline.Pipeline
 }
 
 func newWorker(ctx context.Context, s *Server) *worker {
 	w := &worker{
-		wg:               &s.wg,
-		tasks:            &s.tasks,
-		sortedTasks:      task.SortTask(&s.tasks),
-		maxWorker:        make(chan struct{}, s.maxWorker),
-		stopRun:          make(chan struct{}),
-		jobChannel:       make(chan *task.Job, s.maxWorker),
-		ctx:              ctx,
-		logger:           s.logger,
-		pl:               pipeline.NewPipeline(),
-		consumeDelayFlag: make(map[string]time.Time),
+		wg:           &s.wg,
+		tasks:        &s.tasks,
+		sortedTasks:  task.SortTask(&s.tasks),
+		maxWorker:    make(chan struct{}, s.maxWorker),
+		stopRun:      make(chan struct{}),
+		jobChannel:   make(chan *task.Job, s.maxWorker),
+		ctx:          ctx,
+		logger:       s.logger,
+		pl:           pipeline.NewPipeline(),
+		popDelayFlag: make(map[string]time.Time),
 	}
 	return w
 }
@@ -139,20 +139,18 @@ func (w *worker) runJob(job *task.Job) {
 		}
 	}()
 	v, ok := w.tasks.Load(job.Name())
-	if !ok {
+	if ok {
+		t = v.(task.Task)
+		w.runJobWithTimeout(t, job)
+	} else {
 		w.handleError(TaskNotFoundError)
-		return
 	}
-	t = v.(task.Task)
-	w.runJobWithTimeout(t, job)
 }
 
 func (w *worker) runJobWithTimeout(t task.Task, job *task.Job) {
 	// defined timeout
 	ctx, cancel := context.WithDeadline(w.ctx, job.TimeoutAt())
-	defer func() {
-		cancel()
-	}()
+	defer func() { cancel() }()
 	// perform in goroutine
 	prh := make(chan any, 1)
 	go func(prh chan any) {
@@ -176,8 +174,16 @@ func (w *worker) perform(t task.Task, job *task.Job) {
 			w.handleJobError(t, job, e.NewPanicError(x))
 		}
 	}()
-	// task runner
-	fn := func(_ any) any {
+
+	wrapJob := w.wrapJobPerform(t, job)
+	middleware := task.CastMiddleware(t.Processware())
+
+	// call func through middleware
+	w.pl.Send(task.NewRunPassable(t, job)).Through(middleware...).Then(wrapJob)
+}
+
+func (w *worker) wrapJobPerform(t task.Task, job *task.Job) pipeline.Next {
+	return func(_ any) any {
 		w.handleJobStart(t, job)
 		_, err := t.Run(w.ctx, job)
 		if err == nil {
@@ -191,12 +197,6 @@ func (w *worker) perform(t task.Task, job *task.Job) {
 		}
 		return err
 	}
-	// call func through middleware
-	w.pl.Send(task.NewRunPassable(t, job)).
-		Through(task.CastMiddleware(t.Processware())...).
-		Then(fn)
-
-	return
 }
 
 func (w *worker) getNextJob() (*task.Job, error) {
@@ -207,12 +207,11 @@ func (w *worker) getNextJob() (*task.Job, error) {
 			continue
 		}
 		w.logger.Debugf("start to get job, name=%s", t.GetName())
-		job, err := w.getJob(t)
-		if err == nil {
+		if job, err := w.getJob(t); err == nil {
 			job.Then(passable.GetCallback())
 			return job, nil
 		}
-		w.logger.Debugf("no job for process, name=%s", t.GetName())
+		w.logger.Debugf("no job for process, wait seconds before next time, name=%s", t.GetName())
 		// no message on queue, delay some seconds before next time
 		w.waitSecondNextJob(t)
 		// exec callback func
@@ -225,7 +224,7 @@ func (w *worker) canGetNextJob(t task.Task, pp *task.PopPassable) bool {
 	if t.Status() == task.Disable {
 		return false
 	}
-	delayAt, ok := w.consumeDelayFlag[t.OnQueue()]
+	delayAt, ok := w.popDelayFlag[t.OnQueue()]
 	if ok && time.Now().Before(delayAt) {
 		return false
 	}
@@ -243,10 +242,9 @@ func (w *worker) canGetNextJob(t task.Task, pp *task.PopPassable) bool {
 }
 
 func (w *worker) waitSecondNextJob(task task.Task) {
-	w.logger.Debugf("wait for 3 second before next time, name=%s", task.GetName())
 	w.lock.Lock()
 	defer w.lock.Unlock()
-	w.consumeDelayFlag[task.OnQueue()] = time.Now().Add(3 * time.Second)
+	w.popDelayFlag[task.OnQueue()] = time.Now().Add(3 * time.Second)
 }
 
 func (w *worker) getJob(t task.Task) (*task.Job, error) {
