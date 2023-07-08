@@ -3,74 +3,46 @@ package goq
 import (
 	"github.com/pfdtk/goq/connect"
 	"github.com/pfdtk/goq/task"
-	"go.uber.org/zap"
+	"github.com/pfdtk/goq/test"
 	"testing"
 )
 
 func TestClient(t *testing.T) {
-	z, err := zap.NewDevelopment()
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	log := z.Sugar()
-	c := NewClient(&ClientConfig{Logger: log})
+	c := NewClient(&ClientConfig{})
 	// connect
-	conn, _ := connect.NewRedisConn(&connect.RedisConf{
-		Addr:     "127.0.0.1",
-		Port:     "6379",
-		DB:       1,
-		PoolSize: 1,
-	})
-	c.AddRedisConnect("test", conn)
+	conn := test.GetRedis()
+	c.AddRedisConnect(test.Conn, conn)
 
-	err = NewTestTask().Dispatch(
+	err := test.NewDemoTask().Dispatch(
 		[]byte("test payload"),
 		task.WithDelay(10),
 		task.WithPayloadUnique([]byte("test payload"), 10),
 	)
 	if err != nil {
 		t.Error(err)
-		return
 	}
 }
 
 func TestDispatch(t *testing.T) {
-	z, err := zap.NewDevelopment()
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	log := z.Sugar()
-	c := NewClient(&ClientConfig{Logger: log})
+	c := NewClient(&ClientConfig{})
 	// connect
-	conn, _ := connect.NewRedisConn(&connect.RedisConf{
-		Addr:     "127.0.0.1",
-		Port:     "6379",
-		DB:       1,
-		PoolSize: 2,
-	})
-	c.AddRedisConnect("test", conn)
-	err = c.Dispatch(NewTestTask(), []byte("test"))
+	conn := test.GetRedis()
+	c.AddRedisConnect(test.Conn, conn)
+	err := c.Dispatch(test.NewDemoTask(), []byte("test"))
 	if err != nil {
 		t.Error(err)
-		return
 	}
 }
 
 func TestChain_Dispatch(t *testing.T) {
 	// connect
-	conn, _ := connect.NewRedisConn(&connect.RedisConf{
-		Addr:     "127.0.0.1",
-		Port:     "6379",
-		DB:       1,
-		PoolSize: 1,
-	})
-	connect.AddRedisConnect("test", conn)
-
-	t1 := NewTestTask().Message([]byte("test chain 1"))
-	t2 := NewTestTask().Message([]byte("test chain 2"))
-	t3 := NewTestTask2().Message([]byte("test chain 3"))
-	c := task.NewChain(t1, t2, t3)
-	_ = c.Dispatch()
+	conn := test.GetRedis()
+	connect.AddRedisConnect(test.Conn, conn)
+	t1 := test.NewDemoTask().Message([]byte("test chain 1"))
+	t2 := test.NewDemoTask().Message([]byte("test chain 2"))
+	c := task.NewChain(t1, t2)
+	err := c.Dispatch()
+	if err != nil {
+		t.Error(err)
+	}
 }

@@ -16,7 +16,6 @@ func NewMaxWorkerLimiter(
 	maxWorker int,
 	timeout int) Middleware {
 	return func(p any, next func(p any) any) any {
-		logger.GetLogger().Debugf("try to get max worker limiter lock, task=%s", name)
 		redis := connect.GetRedis(conn)
 		lockName := "goq-task-max-worker-limiter:" + name
 		l := limiter.NewConcurrency(redis, lockName, maxWorker, timeout)
@@ -24,7 +23,6 @@ func NewMaxWorkerLimiter(
 		token, err := l.Acquire(id)
 
 		if err != nil {
-			logger.GetLogger().Debugf("fail to get max worker limiter lock, task=%s", name)
 			switch p.(type) {
 			case *RunPassable:
 				rp := p.(*RunPassable)
@@ -35,14 +33,11 @@ func NewMaxWorkerLimiter(
 			return false
 		}
 
-		logger.GetLogger().Debugf("got max worker limiter lock, task=%s", name)
-
 		switch p.(type) {
 		case *PopPassable:
 			pp := p.(*PopPassable)
 			prev := pp.GetCallback()
 			pp.SetCallback(func() {
-				logger.GetLogger().Debugf("release the max worker limiter lock, task=%s", name)
 				l.Release(token, id)
 				if prev != nil {
 					prev()
