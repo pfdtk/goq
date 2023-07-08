@@ -86,10 +86,7 @@ func (m *migrate) performMigrateTask(t task.Task, cat MigrateType) {
 	err := q.Migrate(m.ctx, from, moveTo)
 
 	if err != nil {
-		m.logger.Errorf("migrate error, type=%s, queue=%s", cat, t.OnQueue())
 		m.handleError(err)
-	} else {
-		m.logger.Infof("migrate success, type=%s, queue=%s", cat, t.OnQueue())
 	}
 }
 
