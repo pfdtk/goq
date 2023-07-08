@@ -93,6 +93,6 @@ func TestServer_Start(t *testing.T) {
 	server.AddRedisConnect("test", conn)
 	server.RegisterTask(NewTestTask())
 	server.RegisterTask(NewTestTask2())
-	//server.RegisterCronTask("* * * * *", NewTestTask())
+	server.RegisterCronTask("* * * * *", NewTestTask())
 	server.MustStart(context.Background())
 }

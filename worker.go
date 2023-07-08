@@ -206,12 +206,10 @@ func (w *worker) getNextJob() (*task.Job, error) {
 		if !w.canGetNextJob(t, passable) {
 			continue
 		}
-		w.logger.Debugf("start to get job, name=%s", t.GetName())
 		if job, err := w.getJob(t); err == nil {
 			job.Then(passable.GetCallback())
 			return job, nil
 		}
-		w.logger.Debugf("no job for process, wait seconds before next time, name=%s", t.GetName())
 		// no message on queue, delay some seconds before next time
 		w.waitSecondNextJob(t)
 		// exec callback func
