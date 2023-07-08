@@ -40,6 +40,7 @@ func (s *Server) MustStart(ctx context.Context) {
 	s.mustStartWorker(ctx)
 	s.mustStartMigrate(ctx)
 	s.mustStartScheduler(ctx)
+	s.logger.Info("server started")
 	// wait for sign to exit
 	s.waitSignals()
 	// wait for all goroutine to finished
