@@ -35,6 +35,14 @@ func GetRedis(name string) *redis.Client {
 	return c.(*redis.Client)
 }
 
+func MustGetRedis(name string) *redis.Client {
+	c, ok := conn.Load(name)
+	if !ok {
+		panic("connect not found")
+	}
+	return c.(*redis.Client)
+}
+
 func GetSqs(name string) *SqsClient {
 	c, ok := conn.Load(name)
 	if !ok {

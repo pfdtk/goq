@@ -2,7 +2,6 @@ package goq
 
 import (
 	"context"
-	"fmt"
 	"github.com/pfdtk/goq/connect"
 	"github.com/pfdtk/goq/event"
 	e "github.com/pfdtk/goq/internal/errors"
@@ -78,15 +77,14 @@ func (m *migrate) performMigrateTask(t task.Task, cat MigrateType) {
 			m.handleError(e.NewPanicError(x))
 		}
 	}()
-	c := connect.GetRedis(t.OnConnect())
-	if c == nil {
-		m.handleError(fmt.Errorf("connect not found, name=%s", t.OnConnect()))
-		return
-	}
+
+	c := connect.MustGetRedis(t.OnConnect())
 	q := rdq.NewRedisQueue(c)
+
 	from := m.getMigrateQueueKey(q, t.OnQueue(), cat)
 	moveTo := t.OnQueue()
 	err := q.Migrate(m.ctx, from, moveTo)
+
 	if err != nil {
 		m.logger.Errorf("migrate error, task=%s, queue=%s", cat, t.OnQueue())
 		m.handleError(err)
