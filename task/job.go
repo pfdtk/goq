@@ -2,6 +2,7 @@ package task
 
 import (
 	"context"
+	"errors"
 	qm "github.com/pfdtk/goq/internal/queue"
 	"github.com/pfdtk/goq/queue"
 	"sync"
@@ -167,5 +168,8 @@ func (j *Job) DispatchChain(ctx context.Context) error {
 		next.Chain = chain
 	}
 	q := qm.GetQueue(next.OnConnect, next.QueueType)
+	if q == nil {
+		return errors.New("queue not found")
+	}
 	return q.Push(ctx, next)
 }
